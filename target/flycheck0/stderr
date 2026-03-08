@@ -1,0 +1,2216 @@
+   1.137305000s  INFO prepare_target{force=false package_id=codegraph v0.1.0 (D:\onedrive\tbd\crates\codegraph) target="codegraph"}: cargo::core::compiler::fingerprint: fingerprint error for codegraph v0.1.0 (D:\onedrive\tbd\crates\codegraph)/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("codegraph", ["lib"], "D:\\onedrive\\tbd\\crates\\codegraph\\src\\lib.rs", Edition2021) }
+   1.137466600s  INFO prepare_target{force=false package_id=codegraph v0.1.0 (D:\onedrive\tbd\crates\codegraph) target="codegraph"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\codegraph-8afd4ef0792f1c9c\lib-codegraph`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_libgit2_prerelease
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
+   1.221645500s  INFO prepare_target{force=false package_id=anyhow v1.0.102 target="anyhow"}: cargo::core::compiler::fingerprint: fingerprint error for anyhow v1.0.102/Check { test: false }/TargetInner { ..: lib_target("anyhow", ["lib"], "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\anyhow-1.0.102\\src\\lib.rs", Edition2021) }
+   1.221708000s  INFO prepare_target{force=false package_id=anyhow v1.0.102 target="anyhow"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\anyhow-9c2b1ae3be6b3969\lib-anyhow`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_libgit2_prerelease
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: git_midx_writer_dump
+  18: git_filter_source_repo
+  19: git_midx_writer_dump
+  20: BaseThreadInitThunk
+  21: RtlUserThreadStart
+   1.224362500s  INFO prepare_target{force=false package_id=anyhow v1.0.102 target="build-script-build"}: cargo::core::compiler::fingerprint: fingerprint error for anyhow v1.0.102/RunCustomBuild/TargetInner { ..: custom_build_target("build-script-build", "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\anyhow-1.0.102\\build.rs", Edition2021) }
+   1.224408800s  INFO prepare_target{force=false package_id=anyhow v1.0.102 target="build-script-build"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\anyhow-ff7d2e6a15a69f2e\run-build-script-build-script-build`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_libgit2_prerelease
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: <unknown>
+  19: git_midx_writer_dump
+  20: git_filter_source_repo
+  21: git_midx_writer_dump
+  22: BaseThreadInitThunk
+  23: RtlUserThreadStart
+   1.225119900s  INFO prepare_target{force=false package_id=anyhow v1.0.102 target="build-script-build"}: cargo::core::compiler::fingerprint: fingerprint error for anyhow v1.0.102/Build/TargetInner { ..: custom_build_target("build-script-build", "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\anyhow-1.0.102\\build.rs", Edition2021) }
+   1.225160100s  INFO prepare_target{force=false package_id=anyhow v1.0.102 target="build-script-build"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\anyhow-a6fb742dbf592df4\build-script-build-script-build`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_libgit2_prerelease
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: <unknown>
+  19: git_midx_writer_dump
+  20: git_filter_source_repo
+  21: git_midx_writer_dump
+  22: BaseThreadInitThunk
+  23: RtlUserThreadStart
+   1.227105100s  INFO prepare_target{force=false package_id=petgraph v0.6.5 target="petgraph"}: cargo::core::compiler::fingerprint: fingerprint error for petgraph v0.6.5/Check { test: false }/TargetInner { benched: false, ..: lib_target("petgraph", ["lib"], "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\petgraph-0.6.5\\src\\lib.rs", Edition2018) }
+   1.227174400s  INFO prepare_target{force=false package_id=petgraph v0.6.5 target="petgraph"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\petgraph-34aadc77ce07a596\lib-petgraph`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_libgit2_prerelease
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: git_midx_writer_dump
+  18: git_filter_source_repo
+  19: git_midx_writer_dump
+  20: BaseThreadInitThunk
+  21: RtlUserThreadStart
+   1.229210400s  INFO prepare_target{force=false package_id=fixedbitset v0.4.2 target="fixedbitset"}: cargo::core::compiler::fingerprint: fingerprint error for fixedbitset v0.4.2/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("fixedbitset", ["lib"], "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\fixedbitset-0.4.2\\src\\lib.rs", Edition2015) }
+   1.229299600s  INFO prepare_target{force=false package_id=fixedbitset v0.4.2 target="fixedbitset"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\fixedbitset-73b2cf7aa4641c90\lib-fixedbitset`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_libgit2_prerelease
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: git_midx_writer_dump
+  19: git_filter_source_repo
+  20: git_midx_writer_dump
+  21: BaseThreadInitThunk
+  22: RtlUserThreadStart
+   1.231536200s  INFO prepare_target{force=false package_id=indexmap v2.13.0 target="indexmap"}: cargo::core::compiler::fingerprint: fingerprint error for indexmap v2.13.0/Check { test: false }/TargetInner { benched: false, ..: lib_target("indexmap", ["lib"], "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\indexmap-2.13.0\\src\\lib.rs", Edition2021) }
+   1.231607400s  INFO prepare_target{force=false package_id=indexmap v2.13.0 target="indexmap"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\indexmap-132c00e4ad411ea7\lib-indexmap`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_libgit2_prerelease
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: git_midx_writer_dump
+  19: git_filter_source_repo
+  20: git_midx_writer_dump
+  21: BaseThreadInitThunk
+  22: RtlUserThreadStart
+   1.233975900s  INFO prepare_target{force=false package_id=equivalent v1.0.2 target="equivalent"}: cargo::core::compiler::fingerprint: fingerprint error for equivalent v1.0.2/Check { test: false }/TargetInner { ..: lib_target("equivalent", ["lib"], "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\equivalent-1.0.2\\src\\lib.rs", Edition2015) }
+   1.234060100s  INFO prepare_target{force=false package_id=equivalent v1.0.2 target="equivalent"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\equivalent-e113575d355eefe7\lib-equivalent`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_libgit2_prerelease
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: <unknown>
+  19: git_midx_writer_dump
+  20: git_filter_source_repo
+  21: git_midx_writer_dump
+  22: BaseThreadInitThunk
+  23: RtlUserThreadStart
+   1.235901000s  INFO prepare_target{force=false package_id=hashbrown v0.16.1 target="hashbrown"}: cargo::core::compiler::fingerprint: fingerprint error for hashbrown v0.16.1/Check { test: false }/TargetInner { ..: lib_target("hashbrown", ["lib"], "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\hashbrown-0.16.1\\src\\lib.rs", Edition2021) }
+   1.235968700s  INFO prepare_target{force=false package_id=hashbrown v0.16.1 target="hashbrown"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\hashbrown-a810bcad5b441f5a\lib-hashbrown`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_libgit2_prerelease
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: <unknown>
+  19: git_midx_writer_dump
+  20: git_filter_source_repo
+  21: git_midx_writer_dump
+  22: BaseThreadInitThunk
+  23: RtlUserThreadStart
+   1.237572100s  INFO prepare_target{force=false package_id=serde v1.0.228 target="serde"}: cargo::core::compiler::fingerprint: fingerprint error for serde v1.0.228/Check { test: false }/TargetInner { ..: lib_target("serde", ["lib"], "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\serde-1.0.228\\src\\lib.rs", Edition2021) }
+   1.237639700s  INFO prepare_target{force=false package_id=serde v1.0.228 target="serde"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\serde-c5ab190656da9073\lib-serde`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_libgit2_prerelease
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: git_midx_writer_dump
+  18: git_filter_source_repo
+  19: git_midx_writer_dump
+  20: BaseThreadInitThunk
+  21: RtlUserThreadStart
+   1.240249300s  INFO prepare_target{force=false package_id=serde v1.0.228 target="build-script-build"}: cargo::core::compiler::fingerprint: fingerprint error for serde v1.0.228/RunCustomBuild/TargetInner { ..: custom_build_target("build-script-build", "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\serde-1.0.228\\build.rs", Edition2021) }
+   1.240293000s  INFO prepare_target{force=false package_id=serde v1.0.228 target="build-script-build"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\serde-a3d5cc7c79f19dbb\run-build-script-build-script-build`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_libgit2_prerelease
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: <unknown>
+  19: git_midx_writer_dump
+  20: git_filter_source_repo
+  21: git_midx_writer_dump
+  22: BaseThreadInitThunk
+  23: RtlUserThreadStart
+   1.240983700s  INFO prepare_target{force=false package_id=serde v1.0.228 target="build-script-build"}: cargo::core::compiler::fingerprint: fingerprint error for serde v1.0.228/Build/TargetInner { ..: custom_build_target("build-script-build", "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\serde-1.0.228\\build.rs", Edition2021) }
+   1.241023400s  INFO prepare_target{force=false package_id=serde v1.0.228 target="build-script-build"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\serde-353627ddd480230e\build-script-build-script-build`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_libgit2_prerelease
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: <unknown>
+  19: git_midx_writer_dump
+  20: git_filter_source_repo
+  21: git_midx_writer_dump
+  22: BaseThreadInitThunk
+  23: RtlUserThreadStart
+   1.243146400s  INFO prepare_target{force=false package_id=serde_core v1.0.228 target="serde_core"}: cargo::core::compiler::fingerprint: fingerprint error for serde_core v1.0.228/Check { test: false }/TargetInner { ..: lib_target("serde_core", ["lib"], "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\serde_core-1.0.228\\src\\lib.rs", Edition2021) }
+   1.243208900s  INFO prepare_target{force=false package_id=serde_core v1.0.228 target="serde_core"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\serde_core-e4ff65c866a9c6f3\lib-serde_core`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_libgit2_prerelease
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: git_midx_writer_dump
+  19: git_filter_source_repo
+  20: git_midx_writer_dump
+  21: BaseThreadInitThunk
+  22: RtlUserThreadStart
+   1.246559900s  INFO prepare_target{force=false package_id=serde_core v1.0.228 target="build-script-build"}: cargo::core::compiler::fingerprint: fingerprint error for serde_core v1.0.228/RunCustomBuild/TargetInner { ..: custom_build_target("build-script-build", "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\serde_core-1.0.228\\build.rs", Edition2021) }
+   1.246607000s  INFO prepare_target{force=false package_id=serde_core v1.0.228 target="build-script-build"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\serde_core-9e8321d6a1329a8f\run-build-script-build-script-build`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_filter_source_repo
+  15: git_libgit2_prerelease
+  16: <unknown>
+  17: <unknown>
+  18: <unknown>
+  19: <unknown>
+  20: git_midx_writer_dump
+  21: git_filter_source_repo
+  22: git_midx_writer_dump
+  23: BaseThreadInitThunk
+  24: RtlUserThreadStart
+   1.247409700s  INFO prepare_target{force=false package_id=serde_core v1.0.228 target="build-script-build"}: cargo::core::compiler::fingerprint: fingerprint error for serde_core v1.0.228/Build/TargetInner { ..: custom_build_target("build-script-build", "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\serde_core-1.0.228\\build.rs", Edition2021) }
+   1.247449200s  INFO prepare_target{force=false package_id=serde_core v1.0.228 target="build-script-build"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\serde_core-f4852550f8317e69\build-script-build-script-build`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_filter_source_repo
+  15: git_libgit2_prerelease
+  16: <unknown>
+  17: <unknown>
+  18: <unknown>
+  19: <unknown>
+  20: git_midx_writer_dump
+  21: git_filter_source_repo
+  22: git_midx_writer_dump
+  23: BaseThreadInitThunk
+  24: RtlUserThreadStart
+   1.249387900s  INFO prepare_target{force=false package_id=serde_derive v1.0.228 target="serde_derive"}: cargo::core::compiler::fingerprint: fingerprint error for serde_derive v1.0.228/Build/TargetInner { for_host: true, proc_macro: true, ..: lib_target("serde_derive", ["proc-macro"], "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\serde_derive-1.0.228\\src\\lib.rs", Edition2021) }
+   1.249459800s  INFO prepare_target{force=false package_id=serde_derive v1.0.228 target="serde_derive"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\serde_derive-4fe62d958cb194cb\lib-serde_derive`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_libgit2_prerelease
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: git_midx_writer_dump
+  19: git_filter_source_repo
+  20: git_midx_writer_dump
+  21: BaseThreadInitThunk
+  22: RtlUserThreadStart
+   1.251620000s  INFO prepare_target{force=false package_id=proc-macro2 v1.0.106 target="proc_macro2"}: cargo::core::compiler::fingerprint: fingerprint error for proc-macro2 v1.0.106/Build/TargetInner { ..: lib_target("proc_macro2", ["lib"], "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\proc-macro2-1.0.106\\src\\lib.rs", Edition2021) }
+   1.251674500s  INFO prepare_target{force=false package_id=proc-macro2 v1.0.106 target="proc_macro2"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\proc-macro2-b2be499f55f57320\lib-proc_macro2`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_libgit2_prerelease
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: <unknown>
+  19: git_midx_writer_dump
+  20: git_filter_source_repo
+  21: git_midx_writer_dump
+  22: BaseThreadInitThunk
+  23: RtlUserThreadStart
+   1.254363300s  INFO prepare_target{force=false package_id=proc-macro2 v1.0.106 target="build-script-build"}: cargo::core::compiler::fingerprint: fingerprint error for proc-macro2 v1.0.106/RunCustomBuild/TargetInner { ..: custom_build_target("build-script-build", "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\proc-macro2-1.0.106\\build.rs", Edition2021) }
+   1.254412900s  INFO prepare_target{force=false package_id=proc-macro2 v1.0.106 target="build-script-build"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\proc-macro2-cb6f0d76bb0a4dec\run-build-script-build-script-build`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_filter_source_repo
+  15: git_filter_source_repo
+  16: git_libgit2_prerelease
+  17: <unknown>
+  18: <unknown>
+  19: <unknown>
+  20: <unknown>
+  21: git_midx_writer_dump
+  22: git_filter_source_repo
+  23: git_midx_writer_dump
+  24: BaseThreadInitThunk
+  25: RtlUserThreadStart
+   1.255146000s  INFO prepare_target{force=false package_id=proc-macro2 v1.0.106 target="build-script-build"}: cargo::core::compiler::fingerprint: fingerprint error for proc-macro2 v1.0.106/Build/TargetInner { ..: custom_build_target("build-script-build", "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\proc-macro2-1.0.106\\build.rs", Edition2021) }
+   1.255182800s  INFO prepare_target{force=false package_id=proc-macro2 v1.0.106 target="build-script-build"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\proc-macro2-ff37e2eafc2e297d\build-script-build-script-build`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_filter_source_repo
+  15: git_filter_source_repo
+  16: git_libgit2_prerelease
+  17: <unknown>
+  18: <unknown>
+  19: <unknown>
+  20: <unknown>
+  21: git_midx_writer_dump
+  22: git_filter_source_repo
+  23: git_midx_writer_dump
+  24: BaseThreadInitThunk
+  25: RtlUserThreadStart
+   1.257175400s  INFO prepare_target{force=false package_id=quote v1.0.45 target="quote"}: cargo::core::compiler::fingerprint: fingerprint error for quote v1.0.45/Build/TargetInner { ..: lib_target("quote", ["lib"], "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\quote-1.0.45\\src\\lib.rs", Edition2021) }
+   1.257220400s  INFO prepare_target{force=false package_id=quote v1.0.45 target="quote"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\quote-2172bc8ee448f9c1\lib-quote`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_libgit2_prerelease
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: <unknown>
+  19: git_midx_writer_dump
+  20: git_filter_source_repo
+  21: git_midx_writer_dump
+  22: BaseThreadInitThunk
+  23: RtlUserThreadStart
+   1.273282400s  INFO prepare_target{force=false package_id=quote v1.0.45 target="build-script-build"}: cargo::core::compiler::fingerprint: fingerprint error for quote v1.0.45/RunCustomBuild/TargetInner { ..: custom_build_target("build-script-build", "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\quote-1.0.45\\build.rs", Edition2021) }
+   1.273331900s  INFO prepare_target{force=false package_id=quote v1.0.45 target="build-script-build"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\quote-390f36d92becc034\run-build-script-build-script-build`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_filter_source_repo
+  15: git_filter_source_repo
+  16: git_libgit2_prerelease
+  17: <unknown>
+  18: <unknown>
+  19: <unknown>
+  20: <unknown>
+  21: git_midx_writer_dump
+  22: git_filter_source_repo
+  23: git_midx_writer_dump
+  24: BaseThreadInitThunk
+  25: RtlUserThreadStart
+   1.274239900s  INFO prepare_target{force=false package_id=quote v1.0.45 target="build-script-build"}: cargo::core::compiler::fingerprint: fingerprint error for quote v1.0.45/Build/TargetInner { ..: custom_build_target("build-script-build", "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\quote-1.0.45\\build.rs", Edition2021) }
+   1.274346400s  INFO prepare_target{force=false package_id=quote v1.0.45 target="build-script-build"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\quote-177ac2d7e07a0db1\build-script-build-script-build`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_filter_source_repo
+  15: git_filter_source_repo
+  16: git_libgit2_prerelease
+  17: <unknown>
+  18: <unknown>
+  19: <unknown>
+  20: <unknown>
+  21: git_midx_writer_dump
+  22: git_filter_source_repo
+  23: git_midx_writer_dump
+  24: BaseThreadInitThunk
+  25: RtlUserThreadStart
+   1.276093200s  INFO prepare_target{force=false package_id=syn v2.0.117 target="syn"}: cargo::core::compiler::fingerprint: fingerprint error for syn v2.0.117/Build/TargetInner { ..: lib_target("syn", ["lib"], "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\syn-2.0.117\\src\\lib.rs", Edition2021) }
+   1.276149200s  INFO prepare_target{force=false package_id=syn v2.0.117 target="syn"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\syn-84f7a2d67595ac2d\lib-syn`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_libgit2_prerelease
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: <unknown>
+  19: git_midx_writer_dump
+  20: git_filter_source_repo
+  21: git_midx_writer_dump
+  22: BaseThreadInitThunk
+  23: RtlUserThreadStart
+   1.278225000s  INFO prepare_target{force=false package_id=tree-sitter v0.22.6 target="tree_sitter"}: cargo::core::compiler::fingerprint: fingerprint error for tree-sitter v0.22.6/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("tree_sitter", ["lib"], "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tree-sitter-0.22.6\\binding_rust\\lib.rs", Edition2021) }
+   1.278277000s  INFO prepare_target{force=false package_id=tree-sitter v0.22.6 target="tree_sitter"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\tree-sitter-42b3418a57ae4180\lib-tree_sitter`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_libgit2_prerelease
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: git_midx_writer_dump
+  18: git_filter_source_repo
+  19: git_midx_writer_dump
+  20: BaseThreadInitThunk
+  21: RtlUserThreadStart
+   1.280758400s  INFO prepare_target{force=false package_id=regex v1.12.3 target="regex"}: cargo::core::compiler::fingerprint: fingerprint error for regex v1.12.3/Check { test: false }/TargetInner { ..: lib_target("regex", ["lib"], "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\regex-1.12.3\\src\\lib.rs", Edition2021) }
+   1.280821800s  INFO prepare_target{force=false package_id=regex v1.12.3 target="regex"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\regex-9cf38e446ce980b4\lib-regex`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_libgit2_prerelease
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: git_midx_writer_dump
+  19: git_filter_source_repo
+  20: git_midx_writer_dump
+  21: BaseThreadInitThunk
+  22: RtlUserThreadStart
+   1.282903800s  INFO prepare_target{force=false package_id=aho-corasick v1.1.4 target="aho_corasick"}: cargo::core::compiler::fingerprint: fingerprint error for aho-corasick v1.1.4/Check { test: false }/TargetInner { ..: lib_target("aho_corasick", ["lib"], "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\aho-corasick-1.1.4\\src\\lib.rs", Edition2021) }
+   1.282971900s  INFO prepare_target{force=false package_id=aho-corasick v1.1.4 target="aho_corasick"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\aho-corasick-8c7f373e7f598f44\lib-aho_corasick`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_libgit2_prerelease
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: <unknown>
+  19: git_midx_writer_dump
+  20: git_filter_source_repo
+  21: git_midx_writer_dump
+  22: BaseThreadInitThunk
+  23: RtlUserThreadStart
+   1.285584100s  INFO prepare_target{force=false package_id=memchr v2.8.0 target="memchr"}: cargo::core::compiler::fingerprint: fingerprint error for memchr v2.8.0/Check { test: false }/TargetInner { benched: false, ..: lib_target("memchr", ["lib"], "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\memchr-2.8.0\\src\\lib.rs", Edition2021) }
+   1.285640700s  INFO prepare_target{force=false package_id=memchr v2.8.0 target="memchr"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\memchr-1157358f9d78cba5\lib-memchr`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_filter_source_repo
+  15: git_libgit2_prerelease
+  16: <unknown>
+  17: <unknown>
+  18: <unknown>
+  19: <unknown>
+  20: git_midx_writer_dump
+  21: git_filter_source_repo
+  22: git_midx_writer_dump
+  23: BaseThreadInitThunk
+  24: RtlUserThreadStart
+   1.287224600s  INFO prepare_target{force=false package_id=regex-automata v0.4.14 target="regex_automata"}: cargo::core::compiler::fingerprint: fingerprint error for regex-automata v0.4.14/Check { test: false }/TargetInner { benched: false, ..: lib_target("regex_automata", ["lib"], "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\regex-automata-0.4.14\\src\\lib.rs", Edition2021) }
+   1.287278500s  INFO prepare_target{force=false package_id=regex-automata v0.4.14 target="regex_automata"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\regex-automata-0346994415f2ee25\lib-regex_automata`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_libgit2_prerelease
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: <unknown>
+  19: git_midx_writer_dump
+  20: git_filter_source_repo
+  21: git_midx_writer_dump
+  22: BaseThreadInitThunk
+  23: RtlUserThreadStart
+   1.289282900s  INFO prepare_target{force=false package_id=regex-syntax v0.8.10 target="regex_syntax"}: cargo::core::compiler::fingerprint: fingerprint error for regex-syntax v0.8.10/Check { test: false }/TargetInner { ..: lib_target("regex_syntax", ["lib"], "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\regex-syntax-0.8.10\\src\\lib.rs", Edition2021) }
+   1.289340500s  INFO prepare_target{force=false package_id=regex-syntax v0.8.10 target="regex_syntax"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\regex-syntax-f8e8c0494cc57f6f\lib-regex_syntax`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_filter_source_repo
+  15: git_libgit2_prerelease
+  16: <unknown>
+  17: <unknown>
+  18: <unknown>
+  19: <unknown>
+  20: git_midx_writer_dump
+  21: git_filter_source_repo
+  22: git_midx_writer_dump
+  23: BaseThreadInitThunk
+  24: RtlUserThreadStart
+   1.292227600s  INFO prepare_target{force=false package_id=tree-sitter v0.22.6 target="build-script-build"}: cargo::core::compiler::fingerprint: fingerprint error for tree-sitter v0.22.6/RunCustomBuild/TargetInner { ..: custom_build_target("build-script-build", "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tree-sitter-0.22.6\\binding_rust\\build.rs", Edition2021) }
+   1.292286400s  INFO prepare_target{force=false package_id=tree-sitter v0.22.6 target="build-script-build"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\tree-sitter-a2af7b11ed47d87b\run-build-script-build-script-build`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_libgit2_prerelease
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: <unknown>
+  19: git_midx_writer_dump
+  20: git_filter_source_repo
+  21: git_midx_writer_dump
+  22: BaseThreadInitThunk
+  23: RtlUserThreadStart
+   1.293074700s  INFO prepare_target{force=false package_id=tree-sitter v0.22.6 target="build-script-build"}: cargo::core::compiler::fingerprint: fingerprint error for tree-sitter v0.22.6/Build/TargetInner { ..: custom_build_target("build-script-build", "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tree-sitter-0.22.6\\binding_rust\\build.rs", Edition2021) }
+   1.293119900s  INFO prepare_target{force=false package_id=tree-sitter v0.22.6 target="build-script-build"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\tree-sitter-9ee3d52f22b6d6dd\build-script-build-script-build`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_libgit2_prerelease
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: <unknown>
+  19: git_midx_writer_dump
+  20: git_filter_source_repo
+  21: git_midx_writer_dump
+  22: BaseThreadInitThunk
+  23: RtlUserThreadStart
+   1.297040000s  INFO prepare_target{force=false package_id=tree-sitter-python v0.21.0 target="tree_sitter_python"}: cargo::core::compiler::fingerprint: fingerprint error for tree-sitter-python v0.21.0/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("tree_sitter_python", ["lib"], "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tree-sitter-python-0.21.0\\bindings\\rust\\lib.rs", Edition2021) }
+   1.297104800s  INFO prepare_target{force=false package_id=tree-sitter-python v0.21.0 target="tree_sitter_python"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\tree-sitter-python-161202711b453c7b\lib-tree_sitter_python`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_libgit2_prerelease
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: git_midx_writer_dump
+  18: git_filter_source_repo
+  19: git_midx_writer_dump
+  20: BaseThreadInitThunk
+  21: RtlUserThreadStart
+   1.300406200s  INFO prepare_target{force=false package_id=tree-sitter-python v0.21.0 target="build-script-build"}: cargo::core::compiler::fingerprint: fingerprint error for tree-sitter-python v0.21.0/RunCustomBuild/TargetInner { ..: custom_build_target("build-script-build", "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tree-sitter-python-0.21.0\\bindings\\rust\\build.rs", Edition2021) }
+   1.300483500s  INFO prepare_target{force=false package_id=tree-sitter-python v0.21.0 target="build-script-build"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\tree-sitter-python-4d7ee995299562c5\run-build-script-build-script-build`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_libgit2_prerelease
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: <unknown>
+  19: git_midx_writer_dump
+  20: git_filter_source_repo
+  21: git_midx_writer_dump
+  22: BaseThreadInitThunk
+  23: RtlUserThreadStart
+   1.301219700s  INFO prepare_target{force=false package_id=tree-sitter-python v0.21.0 target="build-script-build"}: cargo::core::compiler::fingerprint: fingerprint error for tree-sitter-python v0.21.0/Build/TargetInner { ..: custom_build_target("build-script-build", "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tree-sitter-python-0.21.0\\bindings\\rust\\build.rs", Edition2021) }
+   1.301260500s  INFO prepare_target{force=false package_id=tree-sitter-python v0.21.0 target="build-script-build"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\tree-sitter-python-e90653c4164fddcb\build-script-build-script-build`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_libgit2_prerelease
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: <unknown>
+  19: git_midx_writer_dump
+  20: git_filter_source_repo
+  21: git_midx_writer_dump
+  22: BaseThreadInitThunk
+  23: RtlUserThreadStart
+   1.303208600s  INFO prepare_target{force=false package_id=tree-sitter-rust v0.21.2 target="tree_sitter_rust"}: cargo::core::compiler::fingerprint: fingerprint error for tree-sitter-rust v0.21.2/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("tree_sitter_rust", ["lib"], "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tree-sitter-rust-0.21.2\\bindings\\rust\\lib.rs", Edition2021) }
+   1.303264100s  INFO prepare_target{force=false package_id=tree-sitter-rust v0.21.2 target="tree_sitter_rust"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\tree-sitter-rust-49af6a78e62fcebc\lib-tree_sitter_rust`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_libgit2_prerelease
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: git_midx_writer_dump
+  18: git_filter_source_repo
+  19: git_midx_writer_dump
+  20: BaseThreadInitThunk
+  21: RtlUserThreadStart
+   1.337028500s  INFO prepare_target{force=false package_id=tree-sitter-rust v0.21.2 target="build-script-build"}: cargo::core::compiler::fingerprint: fingerprint error for tree-sitter-rust v0.21.2/RunCustomBuild/TargetInner { ..: custom_build_target("build-script-build", "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tree-sitter-rust-0.21.2\\bindings\\rust\\build.rs", Edition2021) }
+   1.337079700s  INFO prepare_target{force=false package_id=tree-sitter-rust v0.21.2 target="build-script-build"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\tree-sitter-rust-114d961f94a241ed\run-build-script-build-script-build`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_libgit2_prerelease
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: <unknown>
+  19: git_midx_writer_dump
+  20: git_filter_source_repo
+  21: git_midx_writer_dump
+  22: BaseThreadInitThunk
+  23: RtlUserThreadStart
+   1.337826400s  INFO prepare_target{force=false package_id=tree-sitter-rust v0.21.2 target="build-script-build"}: cargo::core::compiler::fingerprint: fingerprint error for tree-sitter-rust v0.21.2/Build/TargetInner { ..: custom_build_target("build-script-build", "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tree-sitter-rust-0.21.2\\bindings\\rust\\build.rs", Edition2021) }
+   1.337882800s  INFO prepare_target{force=false package_id=tree-sitter-rust v0.21.2 target="build-script-build"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\tree-sitter-rust-ea90424ee515aa76\build-script-build-script-build`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_libgit2_prerelease
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: <unknown>
+  19: git_midx_writer_dump
+  20: git_filter_source_repo
+  21: git_midx_writer_dump
+  22: BaseThreadInitThunk
+  23: RtlUserThreadStart
+   1.340230900s  INFO prepare_target{force=false package_id=codegraph v0.1.0 (D:\onedrive\tbd\crates\codegraph) target="codegraph"}: cargo::core::compiler::fingerprint: fingerprint error for codegraph v0.1.0 (D:\onedrive\tbd\crates\codegraph)/Check { test: true }/TargetInner { name_inferred: true, ..: lib_target("codegraph", ["lib"], "D:\\onedrive\\tbd\\crates\\codegraph\\src\\lib.rs", Edition2021) }
+   1.340292800s  INFO prepare_target{force=false package_id=codegraph v0.1.0 (D:\onedrive\tbd\crates\codegraph) target="codegraph"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\codegraph-8a93b00d1dfed91f\test-lib-codegraph`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_libgit2_prerelease
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
+   1.342473900s  INFO prepare_target{force=false package_id=domain v0.1.0 (D:\onedrive\tbd\crates\domain) target="domain"}: cargo::core::compiler::fingerprint: fingerprint error for domain v0.1.0 (D:\onedrive\tbd\crates\domain)/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("domain", ["lib"], "D:\\onedrive\\tbd\\crates\\domain\\src\\lib.rs", Edition2021) }
+   1.342549200s  INFO prepare_target{force=false package_id=domain v0.1.0 (D:\onedrive\tbd\crates\domain) target="domain"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\domain-523bcae88d8ca090\lib-domain`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_libgit2_prerelease
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: git_midx_writer_dump
+  18: git_filter_source_repo
+  19: git_midx_writer_dump
+  20: BaseThreadInitThunk
+  21: RtlUserThreadStart
+   1.344855000s  INFO prepare_target{force=false package_id=codegraph v0.1.0 (D:\onedrive\tbd\crates\codegraph) target="idempotency"}: cargo::core::compiler::fingerprint: fingerprint error for codegraph v0.1.0 (D:\onedrive\tbd\crates\codegraph)/Check { test: true }/TargetInner { kind: "test", name: "idempotency", benched: false, ..: with_path("D:\\onedrive\\tbd\\crates\\codegraph\\tests\\idempotency.rs", Edition2021) }
+   1.344951000s  INFO prepare_target{force=false package_id=codegraph v0.1.0 (D:\onedrive\tbd\crates\codegraph) target="idempotency"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\codegraph-e75a52a251c57d38\test-integration-test-idempotency`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_libgit2_prerelease
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
+   1.348779500s  INFO prepare_target{force=false package_id=codegraph v0.1.0 (D:\onedrive\tbd\crates\codegraph) target="rust_parser"}: cargo::core::compiler::fingerprint: fingerprint error for codegraph v0.1.0 (D:\onedrive\tbd\crates\codegraph)/Check { test: true }/TargetInner { kind: "test", name: "rust_parser", benched: false, ..: with_path("D:\\onedrive\\tbd\\crates\\codegraph\\tests\\rust_parser.rs", Edition2021) }
+   1.348853700s  INFO prepare_target{force=false package_id=codegraph v0.1.0 (D:\onedrive\tbd\crates\codegraph) target="rust_parser"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\codegraph-d41012070a231678\test-integration-test-rust_parser`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_libgit2_prerelease
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
+   1.353140000s  INFO prepare_target{force=false package_id=domain v0.1.0 (D:\onedrive\tbd\crates\domain) target="domain"}: cargo::core::compiler::fingerprint: fingerprint error for domain v0.1.0 (D:\onedrive\tbd\crates\domain)/Check { test: true }/TargetInner { name_inferred: true, ..: lib_target("domain", ["lib"], "D:\\onedrive\\tbd\\crates\\domain\\src\\lib.rs", Edition2021) }
+   1.353282200s  INFO prepare_target{force=false package_id=domain v0.1.0 (D:\onedrive\tbd\crates\domain) target="domain"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\domain-86116dedf7a69df4\test-lib-domain`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_libgit2_prerelease
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
+   1.355109200s  INFO prepare_target{force=false package_id=dsl v0.1.0 (D:\onedrive\tbd\crates\dsl) target="dsl"}: cargo::core::compiler::fingerprint: fingerprint error for dsl v0.1.0 (D:\onedrive\tbd\crates\dsl)/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("dsl", ["lib"], "D:\\onedrive\\tbd\\crates\\dsl\\src\\lib.rs", Edition2021) }
+   1.355160600s  INFO prepare_target{force=false package_id=dsl v0.1.0 (D:\onedrive\tbd\crates\dsl) target="dsl"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\dsl-a1b7db1012b076ac\lib-dsl`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_libgit2_prerelease
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
+   1.357796100s  INFO prepare_target{force=false package_id=dsl v0.1.0 (D:\onedrive\tbd\crates\dsl) target="dsl"}: cargo::core::compiler::fingerprint: fingerprint error for dsl v0.1.0 (D:\onedrive\tbd\crates\dsl)/Check { test: true }/TargetInner { name_inferred: true, ..: lib_target("dsl", ["lib"], "D:\\onedrive\\tbd\\crates\\dsl\\src\\lib.rs", Edition2021) }
+   1.357861100s  INFO prepare_target{force=false package_id=dsl v0.1.0 (D:\onedrive\tbd\crates\dsl) target="dsl"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\dsl-ff36a90e702f71c3\test-lib-dsl`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_libgit2_prerelease
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
+   1.359960100s  INFO prepare_target{force=false package_id=pretty_assertions v1.4.1 target="pretty_assertions"}: cargo::core::compiler::fingerprint: fingerprint error for pretty_assertions v1.4.1/Check { test: false }/TargetInner { ..: lib_target("pretty_assertions", ["lib"], "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\pretty_assertions-1.4.1\\src\\lib.rs", Edition2018) }
+   1.360045200s  INFO prepare_target{force=false package_id=pretty_assertions v1.4.1 target="pretty_assertions"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\pretty_assertions-719119d4a480426f\lib-pretty_assertions`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_libgit2_prerelease
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: git_midx_writer_dump
+  18: git_filter_source_repo
+  19: git_midx_writer_dump
+  20: BaseThreadInitThunk
+  21: RtlUserThreadStart
+   1.361848900s  INFO prepare_target{force=false package_id=diff v0.1.13 target="diff"}: cargo::core::compiler::fingerprint: fingerprint error for diff v0.1.13/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("diff", ["lib"], "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\diff-0.1.13\\src\\lib.rs", Edition2015) }
+   1.362000100s  INFO prepare_target{force=false package_id=diff v0.1.13 target="diff"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\diff-88c5e5d242ed212d\lib-diff`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_libgit2_prerelease
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: git_midx_writer_dump
+  19: git_filter_source_repo
+  20: git_midx_writer_dump
+  21: BaseThreadInitThunk
+  22: RtlUserThreadStart
+   1.364103700s  INFO prepare_target{force=false package_id=yansi v1.0.1 target="yansi"}: cargo::core::compiler::fingerprint: fingerprint error for yansi v1.0.1/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("yansi", ["lib"], "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\yansi-1.0.1\\src\\lib.rs", Edition2021) }
+   1.364159900s  INFO prepare_target{force=false package_id=yansi v1.0.1 target="yansi"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\yansi-2d5fe4589e094666\lib-yansi`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_libgit2_prerelease
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: git_midx_writer_dump
+  19: git_filter_source_repo
+  20: git_midx_writer_dump
+  21: BaseThreadInitThunk
+  22: RtlUserThreadStart
+   1.366114200s  INFO prepare_target{force=false package_id=dsl v0.1.0 (D:\onedrive\tbd\crates\dsl) target="compiler"}: cargo::core::compiler::fingerprint: fingerprint error for dsl v0.1.0 (D:\onedrive\tbd\crates\dsl)/Check { test: true }/TargetInner { kind: "test", name: "compiler", benched: false, ..: with_path("D:\\onedrive\\tbd\\crates\\dsl\\tests\\compiler.rs", Edition2021) }
+   1.366173300s  INFO prepare_target{force=false package_id=dsl v0.1.0 (D:\onedrive\tbd\crates\dsl) target="compiler"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\dsl-84a56790930a7d11\test-integration-test-compiler`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_libgit2_prerelease
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
+   1.371929900s  INFO prepare_target{force=false package_id=indexer v0.1.0 (D:\onedrive\tbd\crates\indexer) target="indexer"}: cargo::core::compiler::fingerprint: fingerprint error for indexer v0.1.0 (D:\onedrive\tbd\crates\indexer)/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("indexer", ["lib"], "D:\\onedrive\\tbd\\crates\\indexer\\src\\lib.rs", Edition2021) }
+   1.371990100s  INFO prepare_target{force=false package_id=indexer v0.1.0 (D:\onedrive\tbd\crates\indexer) target="indexer"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\indexer-698fe518b84190e0\lib-indexer`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_libgit2_prerelease
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
+   1.373535700s  INFO prepare_target{force=false package_id=async-trait v0.1.89 target="async_trait"}: cargo::core::compiler::fingerprint: fingerprint error for async-trait v0.1.89/Build/TargetInner { for_host: true, proc_macro: true, ..: lib_target("async_trait", ["proc-macro"], "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\async-trait-0.1.89\\src\\lib.rs", Edition2021) }
+   1.373587400s  INFO prepare_target{force=false package_id=async-trait v0.1.89 target="async_trait"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\async-trait-6f253299a7628370\lib-async_trait`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_libgit2_prerelease
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: git_midx_writer_dump
+  18: git_filter_source_repo
+  19: git_midx_writer_dump
+  20: BaseThreadInitThunk
+  21: RtlUserThreadStart
+   1.375547000s  INFO prepare_target{force=false package_id=tokio v1.50.0 target="tokio"}: cargo::core::compiler::fingerprint: fingerprint error for tokio v1.50.0/Check { test: false }/TargetInner { ..: lib_target("tokio", ["lib"], "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.50.0\\src\\lib.rs", Edition2021) }
+   1.375604200s  INFO prepare_target{force=false package_id=tokio v1.50.0 target="tokio"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\tokio-56bbcd8a65d5fc97\lib-tokio`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_libgit2_prerelease
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: git_midx_writer_dump
+  18: git_filter_source_repo
+  19: git_midx_writer_dump
+  20: BaseThreadInitThunk
+  21: RtlUserThreadStart
+   1.377853000s  INFO prepare_target{force=false package_id=pin-project-lite v0.2.17 target="pin_project_lite"}: cargo::core::compiler::fingerprint: fingerprint error for pin-project-lite v0.2.17/Check { test: false }/TargetInner { doc_scrape_examples: Disabled, ..: lib_target("pin_project_lite", ["lib"], "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\pin-project-lite-0.2.17\\src\\lib.rs", Edition2018) }
+   1.377933800s  INFO prepare_target{force=false package_id=pin-project-lite v0.2.17 target="pin_project_lite"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\pin-project-lite-8e269f70c50e6f50\lib-pin_project_lite`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_libgit2_prerelease
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: git_midx_writer_dump
+  19: git_filter_source_repo
+  20: git_midx_writer_dump
+  21: BaseThreadInitThunk
+  22: RtlUserThreadStart
+   1.379992600s  INFO prepare_target{force=false package_id=tokio-macros v2.6.1 target="tokio_macros"}: cargo::core::compiler::fingerprint: fingerprint error for tokio-macros v2.6.1/Build/TargetInner { for_host: true, proc_macro: true, ..: lib_target("tokio_macros", ["proc-macro"], "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-macros-2.6.1\\src\\lib.rs", Edition2021) }
+   1.380049500s  INFO prepare_target{force=false package_id=tokio-macros v2.6.1 target="tokio_macros"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\tokio-macros-978b308ccfce8de6\lib-tokio_macros`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_libgit2_prerelease
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: git_midx_writer_dump
+  19: git_filter_source_repo
+  20: git_midx_writer_dump
+  21: BaseThreadInitThunk
+  22: RtlUserThreadStart
+   1.382358700s  INFO prepare_target{force=false package_id=indexer v0.1.0 (D:\onedrive\tbd\crates\indexer) target="indexer"}: cargo::core::compiler::fingerprint: fingerprint error for indexer v0.1.0 (D:\onedrive\tbd\crates\indexer)/Check { test: true }/TargetInner { name_inferred: true, ..: lib_target("indexer", ["lib"], "D:\\onedrive\\tbd\\crates\\indexer\\src\\lib.rs", Edition2021) }
+   1.382423300s  INFO prepare_target{force=false package_id=indexer v0.1.0 (D:\onedrive\tbd\crates\indexer) target="indexer"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\indexer-44c3cc95af28dd3a\test-lib-indexer`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_libgit2_prerelease
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
+   1.385727200s  INFO prepare_target{force=false package_id=indexer v0.1.0 (D:\onedrive\tbd\crates\indexer) target="pipeline_behaviour"}: cargo::core::compiler::fingerprint: fingerprint error for indexer v0.1.0 (D:\onedrive\tbd\crates\indexer)/Check { test: true }/TargetInner { kind: "test", name: "pipeline_behaviour", benched: false, ..: with_path("D:\\onedrive\\tbd\\crates\\indexer\\tests\\pipeline_behaviour.rs", Edition2021) }
+   1.385780000s  INFO prepare_target{force=false package_id=indexer v0.1.0 (D:\onedrive\tbd\crates\indexer) target="pipeline_behaviour"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\indexer-d785f427413d2295\test-integration-test-pipeline_behaviour`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_libgit2_prerelease
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
+   1.388409000s  INFO prepare_target{force=false package_id=indexer v0.1.0 (D:\onedrive\tbd\crates\indexer) target="unchanged_skip"}: cargo::core::compiler::fingerprint: fingerprint error for indexer v0.1.0 (D:\onedrive\tbd\crates\indexer)/Check { test: true }/TargetInner { kind: "test", name: "unchanged_skip", benched: false, ..: with_path("D:\\onedrive\\tbd\\crates\\indexer\\tests\\unchanged_skip.rs", Edition2021) }
+   1.388485500s  INFO prepare_target{force=false package_id=indexer v0.1.0 (D:\onedrive\tbd\crates\indexer) target="unchanged_skip"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\indexer-3aa55d1f68c0efb8\test-integration-test-unchanged_skip`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_libgit2_prerelease
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
+   1.392569100s  INFO prepare_target{force=false package_id=mcp-server v0.1.0 (D:\onedrive\tbd\crates\mcp-server) target="mcp_server"}: cargo::core::compiler::fingerprint: fingerprint error for mcp-server v0.1.0 (D:\onedrive\tbd\crates\mcp-server)/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("mcp_server", ["lib"], "D:\\onedrive\\tbd\\crates\\mcp-server\\src\\lib.rs", Edition2021) }
+   1.392628900s  INFO prepare_target{force=false package_id=mcp-server v0.1.0 (D:\onedrive\tbd\crates\mcp-server) target="mcp_server"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\mcp-server-6716fdaed801bb4c\lib-mcp_server`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_libgit2_prerelease
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
+   1.394526200s  INFO prepare_target{force=false package_id=retrieval v0.1.0 (D:\onedrive\tbd\crates\retrieval) target="retrieval"}: cargo::core::compiler::fingerprint: fingerprint error for retrieval v0.1.0 (D:\onedrive\tbd\crates\retrieval)/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("retrieval", ["lib"], "D:\\onedrive\\tbd\\crates\\retrieval\\src\\lib.rs", Edition2021) }
+   1.394588300s  INFO prepare_target{force=false package_id=retrieval v0.1.0 (D:\onedrive\tbd\crates\retrieval) target="retrieval"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\retrieval-71325ab110e489ed\lib-retrieval`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_libgit2_prerelease
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: git_midx_writer_dump
+  18: git_filter_source_repo
+  19: git_midx_writer_dump
+  20: BaseThreadInitThunk
+  21: RtlUserThreadStart
+   1.396747200s  INFO prepare_target{force=false package_id=serde_json v1.0.149 target="serde_json"}: cargo::core::compiler::fingerprint: fingerprint error for serde_json v1.0.149/Check { test: false }/TargetInner { ..: lib_target("serde_json", ["lib"], "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\serde_json-1.0.149\\src\\lib.rs", Edition2021) }
+   1.396801800s  INFO prepare_target{force=false package_id=serde_json v1.0.149 target="serde_json"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\serde_json-0628876707f65291\lib-serde_json`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_libgit2_prerelease
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: git_midx_writer_dump
+  18: git_filter_source_repo
+  19: git_midx_writer_dump
+  20: BaseThreadInitThunk
+  21: RtlUserThreadStart
+   1.399133100s  INFO prepare_target{force=false package_id=itoa v1.0.17 target="itoa"}: cargo::core::compiler::fingerprint: fingerprint error for itoa v1.0.17/Check { test: false }/TargetInner { ..: lib_target("itoa", ["lib"], "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\itoa-1.0.17\\src\\lib.rs", Edition2021) }
+   1.399306500s  INFO prepare_target{force=false package_id=itoa v1.0.17 target="itoa"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\itoa-380221fc244fa74f\lib-itoa`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_libgit2_prerelease
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: git_midx_writer_dump
+  19: git_filter_source_repo
+  20: git_midx_writer_dump
+  21: BaseThreadInitThunk
+  22: RtlUserThreadStart
+   1.402546800s  INFO prepare_target{force=false package_id=serde_json v1.0.149 target="build-script-build"}: cargo::core::compiler::fingerprint: fingerprint error for serde_json v1.0.149/RunCustomBuild/TargetInner { ..: custom_build_target("build-script-build", "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\serde_json-1.0.149\\build.rs", Edition2021) }
+   1.402611500s  INFO prepare_target{force=false package_id=serde_json v1.0.149 target="build-script-build"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\serde_json-55ea3553d5385dc8\run-build-script-build-script-build`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_libgit2_prerelease
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: <unknown>
+  19: git_midx_writer_dump
+  20: git_filter_source_repo
+  21: git_midx_writer_dump
+  22: BaseThreadInitThunk
+  23: RtlUserThreadStart
+   1.404508300s  INFO prepare_target{force=false package_id=serde_json v1.0.149 target="build-script-build"}: cargo::core::compiler::fingerprint: fingerprint error for serde_json v1.0.149/Build/TargetInner { ..: custom_build_target("build-script-build", "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\serde_json-1.0.149\\build.rs", Edition2021) }
+   1.404567900s  INFO prepare_target{force=false package_id=serde_json v1.0.149 target="build-script-build"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\serde_json-9710288fcc24bc28\build-script-build-script-build`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_libgit2_prerelease
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: <unknown>
+  19: git_midx_writer_dump
+  20: git_filter_source_repo
+  21: git_midx_writer_dump
+  22: BaseThreadInitThunk
+  23: RtlUserThreadStart
+   1.406639200s  INFO prepare_target{force=false package_id=zmij v1.0.21 target="zmij"}: cargo::core::compiler::fingerprint: fingerprint error for zmij v1.0.21/Check { test: false }/TargetInner { ..: lib_target("zmij", ["lib"], "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\zmij-1.0.21\\src\\lib.rs", Edition2021) }
+   1.406702900s  INFO prepare_target{force=false package_id=zmij v1.0.21 target="zmij"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\zmij-c70c0b499ff2eb91\lib-zmij`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_libgit2_prerelease
+  14: <unknown>
+  15: <unknown>
+  16: <unknown>
+  17: <unknown>
+  18: git_midx_writer_dump
+  19: git_filter_source_repo
+  20: git_midx_writer_dump
+  21: BaseThreadInitThunk
+  22: RtlUserThreadStart
+   1.409612500s  INFO prepare_target{force=false package_id=zmij v1.0.21 target="build-script-build"}: cargo::core::compiler::fingerprint: fingerprint error for zmij v1.0.21/RunCustomBuild/TargetInner { ..: custom_build_target("build-script-build", "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\zmij-1.0.21\\build.rs", Edition2021) }
+   1.409657500s  INFO prepare_target{force=false package_id=zmij v1.0.21 target="build-script-build"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\zmij-8c3b467cd6d7dfae\run-build-script-build-script-build`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_filter_source_repo
+  15: git_libgit2_prerelease
+  16: <unknown>
+  17: <unknown>
+  18: <unknown>
+  19: <unknown>
+  20: git_midx_writer_dump
+  21: git_filter_source_repo
+  22: git_midx_writer_dump
+  23: BaseThreadInitThunk
+  24: RtlUserThreadStart
+   1.410373400s  INFO prepare_target{force=false package_id=zmij v1.0.21 target="build-script-build"}: cargo::core::compiler::fingerprint: fingerprint error for zmij v1.0.21/Build/TargetInner { ..: custom_build_target("build-script-build", "C:\\Users\\gru3h\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\zmij-1.0.21\\build.rs", Edition2021) }
+   1.410415100s  INFO prepare_target{force=false package_id=zmij v1.0.21 target="build-script-build"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\zmij-1eccd671b92d37aa\build-script-build-script-build`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_filter_source_repo
+  15: git_libgit2_prerelease
+  16: <unknown>
+  17: <unknown>
+  18: <unknown>
+  19: <unknown>
+  20: git_midx_writer_dump
+  21: git_filter_source_repo
+  22: git_midx_writer_dump
+  23: BaseThreadInitThunk
+  24: RtlUserThreadStart
+   1.413383500s  INFO prepare_target{force=false package_id=mcp-server v0.1.0 (D:\onedrive\tbd\crates\mcp-server) target="mcp_server"}: cargo::core::compiler::fingerprint: fingerprint error for mcp-server v0.1.0 (D:\onedrive\tbd\crates\mcp-server)/Check { test: true }/TargetInner { name_inferred: true, ..: lib_target("mcp_server", ["lib"], "D:\\onedrive\\tbd\\crates\\mcp-server\\src\\lib.rs", Edition2021) }
+   1.413458200s  INFO prepare_target{force=false package_id=mcp-server v0.1.0 (D:\onedrive\tbd\crates\mcp-server) target="mcp_server"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\mcp-server-a6003442e861d66b\test-lib-mcp_server`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_libgit2_prerelease
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
+   1.416312500s  INFO prepare_target{force=false package_id=mcp-server v0.1.0 (D:\onedrive\tbd\crates\mcp-server) target="tool_registry"}: cargo::core::compiler::fingerprint: fingerprint error for mcp-server v0.1.0 (D:\onedrive\tbd\crates\mcp-server)/Check { test: true }/TargetInner { kind: "test", name: "tool_registry", benched: false, ..: with_path("D:\\onedrive\\tbd\\crates\\mcp-server\\tests\\tool_registry.rs", Edition2021) }
+   1.416378300s  INFO prepare_target{force=false package_id=mcp-server v0.1.0 (D:\onedrive\tbd\crates\mcp-server) target="tool_registry"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\mcp-server-68c466f6b6cfa929\test-integration-test-tool_registry`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_libgit2_prerelease
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
+   1.419815500s  INFO prepare_target{force=false package_id=retrieval v0.1.0 (D:\onedrive\tbd\crates\retrieval) target="retrieval"}: cargo::core::compiler::fingerprint: fingerprint error for retrieval v0.1.0 (D:\onedrive\tbd\crates\retrieval)/Check { test: true }/TargetInner { name_inferred: true, ..: lib_target("retrieval", ["lib"], "D:\\onedrive\\tbd\\crates\\retrieval\\src\\lib.rs", Edition2021) }
+   1.419877400s  INFO prepare_target{force=false package_id=retrieval v0.1.0 (D:\onedrive\tbd\crates\retrieval) target="retrieval"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\retrieval-20556710fc3b2b6b\test-lib-retrieval`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_libgit2_prerelease
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
+   1.421774600s  INFO prepare_target{force=false package_id=retrieval v0.1.0 (D:\onedrive\tbd\crates\retrieval) target="determinism"}: cargo::core::compiler::fingerprint: fingerprint error for retrieval v0.1.0 (D:\onedrive\tbd\crates\retrieval)/Check { test: true }/TargetInner { kind: "test", name: "determinism", benched: false, ..: with_path("D:\\onedrive\\tbd\\crates\\retrieval\\tests\\determinism.rs", Edition2021) }
+   1.421820900s  INFO prepare_target{force=false package_id=retrieval v0.1.0 (D:\onedrive\tbd\crates\retrieval) target="determinism"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\retrieval-35dfba6f928141d4\test-integration-test-determinism`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_libgit2_prerelease
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
+   1.424463700s  INFO prepare_target{force=false package_id=retrieval v0.1.0 (D:\onedrive\tbd\crates\retrieval) target="modalities"}: cargo::core::compiler::fingerprint: fingerprint error for retrieval v0.1.0 (D:\onedrive\tbd\crates\retrieval)/Check { test: true }/TargetInner { kind: "test", name: "modalities", benched: false, ..: with_path("D:\\onedrive\\tbd\\crates\\retrieval\\tests\\modalities.rs", Edition2021) }
+   1.424509400s  INFO prepare_target{force=false package_id=retrieval v0.1.0 (D:\onedrive\tbd\crates\retrieval) target="modalities"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\retrieval-f6c40134e7cafc87\test-integration-test-modalities`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_libgit2_prerelease
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
+   1.426907800s  INFO prepare_target{force=false package_id=storage-neumann v0.1.0 (D:\onedrive\tbd\crates\storage-neumann) target="storage_neumann"}: cargo::core::compiler::fingerprint: fingerprint error for storage-neumann v0.1.0 (D:\onedrive\tbd\crates\storage-neumann)/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("storage_neumann", ["lib"], "D:\\onedrive\\tbd\\crates\\storage-neumann\\src\\lib.rs", Edition2021) }
+   1.426968500s  INFO prepare_target{force=false package_id=storage-neumann v0.1.0 (D:\onedrive\tbd\crates\storage-neumann) target="storage_neumann"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\storage-neumann-daf98e2dc076a439\lib-storage_neumann`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_libgit2_prerelease
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
+   1.429814200s  INFO prepare_target{force=false package_id=storage-neumann v0.1.0 (D:\onedrive\tbd\crates\storage-neumann) target="storage_neumann"}: cargo::core::compiler::fingerprint: fingerprint error for storage-neumann v0.1.0 (D:\onedrive\tbd\crates\storage-neumann)/Check { test: true }/TargetInner { name_inferred: true, ..: lib_target("storage_neumann", ["lib"], "D:\\onedrive\\tbd\\crates\\storage-neumann\\src\\lib.rs", Edition2021) }
+   1.429894800s  INFO prepare_target{force=false package_id=storage-neumann v0.1.0 (D:\onedrive\tbd\crates\storage-neumann) target="storage_neumann"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\storage-neumann-83a6904e57c491d0\test-lib-storage_neumann`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_libgit2_prerelease
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
+   1.433167300s  INFO prepare_target{force=false package_id=storage-neumann v0.1.0 (D:\onedrive\tbd\crates\storage-neumann) target="contract"}: cargo::core::compiler::fingerprint: fingerprint error for storage-neumann v0.1.0 (D:\onedrive\tbd\crates\storage-neumann)/Check { test: true }/TargetInner { kind: "test", name: "contract", benched: false, ..: with_path("D:\\onedrive\\tbd\\crates\\storage-neumann\\tests\\contract.rs", Edition2021) }
+   1.433224700s  INFO prepare_target{force=false package_id=storage-neumann v0.1.0 (D:\onedrive\tbd\crates\storage-neumann) target="contract"}: cargo::core::compiler::fingerprint:     err: failed to read `D:\onedrive\tbd\target\debug\.fingerprint\storage-neumann-f1e3f10f34530ef4\test-integration-test-contract`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_repo
+   6: git_filter_source_repo
+   7: git_filter_source_repo
+   8: git_filter_source_repo
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_libgit2_prerelease
+  12: <unknown>
+  13: <unknown>
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
+   Compiling proc-macro2 v1.0.106
+   Compiling quote v1.0.45
+   Compiling serde_core v1.0.228
+   Compiling serde v1.0.228
+   Compiling anyhow v1.0.102
+    Checking memchr v2.8.0
+    Checking pin-project-lite v0.2.17
+   Compiling tree-sitter v0.22.6
+    Checking regex-syntax v0.8.10
+error: could not compile `serde_core` (build script) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+   Compiling tree-sitter-rust v0.21.2
+error: could not compile `tree-sitter` (build script) due to 1 previous error
+   Compiling tree-sitter-python v0.21.0
+error: could not compile `quote` (build script) due to 1 previous error
+    Checking hashbrown v0.16.1
+error: could not compile `serde` (build script) due to 1 previous error
+   Compiling zmij v1.0.21
+error: could not compile `proc-macro2` (build script) due to 1 previous error
+    Checking equivalent v1.0.2
+error: could not compile `anyhow` (build script) due to 1 previous error
+    Checking fixedbitset v0.4.2
+   Compiling serde_json v1.0.149
+error: could not compile `tree-sitter-python` (build script) due to 1 previous error
+    Checking itoa v1.0.17
+error: could not compile `zmij` (build script) due to 1 previous error
+    Checking yansi v1.0.1
+    Checking aho-corasick v1.1.4
+error: could not compile `tree-sitter-rust` (build script) due to 1 previous error
+    Checking domain v0.1.0 (D:\onedrive\tbd\crates\domain)
+    Checking diff v0.1.13
+error: could not compile `serde_json` (build script) due to 1 previous error
+    Checking pretty_assertions v1.4.1
+    Checking indexmap v2.13.0
+    Checking petgraph v0.6.5
+    Checking regex-automata v0.4.14
+    Checking regex v1.12.3

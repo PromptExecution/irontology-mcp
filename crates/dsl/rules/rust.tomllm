@@ -1,0 +1,16 @@
+# This comment is a hint - never allocated, never parsed
+# Expected handler: tree_sitter_rust
+# Expected output: symbols, call graph, imports
+
+rule rust_code
+  when
+    extension == ".rs"
+    media_type == "text/plain"
+  then
+    handler = tree_sitter_rust
+    extract = [symbols, calls, imports]
+    embed = [functions, docblocks]
+    ontology = rust_code_graph
+    bucket = "{repo_slug}/code"
+    prefix = "{module_path}/"
+    filename = "{blob_hash}_{symbol}.rs"

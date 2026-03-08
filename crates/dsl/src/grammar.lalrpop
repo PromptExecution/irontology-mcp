@@ -1,0 +1,2 @@
+// Placeholder grammar per PRD, current parser is deterministic handwritten in compiler.rs.
+grammar;
