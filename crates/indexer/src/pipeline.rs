@@ -8,12 +8,28 @@ use crate::{chunking::chunk_text, embedding::Modality};
 #[derive(Debug, Clone)]
 pub struct IntakeFile {
     pub path: String,
+    pub extension: String,
+    pub media_type: String,
+    pub fields: Vec<String>,
+    pub class: Option<String>,
+    pub shape: Option<String>,
 }
 
 impl IntakeFile {
     pub fn from_path(path: &Path) -> Self {
+        let extension = path
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| format!(".{ext}"))
+            .unwrap_or_default();
+
         Self {
             path: path.display().to_string(),
+            media_type: infer_media_type(&extension).to_string(),
+            extension,
+            fields: vec![],
+            class: None,
+            shape: None,
         }
     }
 }
@@ -105,4 +121,16 @@ pub async fn index_file(
     }
     store.upsert_embeddings(records).await?;
     Ok(true)
+}
+
+fn infer_media_type(extension: &str) -> &'static str {
+    match extension {
+        ".csv" => "text/csv",
+        ".json" => "application/json",
+        ".pdf" => "application/pdf",
+        ".png" => "image/png",
+        ".jpg" | ".jpeg" => "image/jpeg",
+        ".rs" | ".py" | ".toml" | ".md" | ".txt" | ".yaml" | ".yml" => "text/plain",
+        _ => "",
+    }
 }

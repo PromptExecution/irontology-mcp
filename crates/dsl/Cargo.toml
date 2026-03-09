@@ -5,7 +5,11 @@ edition.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+lalrpop-util = { version = "0.20", features = ["lexer"] }
 serde.workspace = true
+
+[build-dependencies]
+lalrpop = "0.20"
 
 [dev-dependencies]
 pretty_assertions = "1"

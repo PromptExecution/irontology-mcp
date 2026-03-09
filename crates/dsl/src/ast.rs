@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -17,6 +19,8 @@ pub enum Condition {
     Extension(String),
     MediaType(String),
     ContainsField(String),
+    Class(String),
+    Shape(String),
     And(Box<Condition>, Box<Condition>),
 }
 
@@ -34,4 +38,6 @@ pub enum Action {
     Bucket(String),
     Prefix(String),
     Filename(String),
+    Classify(Vec<String>),
+    Tags(BTreeMap<String, String>),
 }

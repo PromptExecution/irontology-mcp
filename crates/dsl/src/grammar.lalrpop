@@ -1,2 +1,67 @@
-// Placeholder grammar per PRD, current parser is deterministic handwritten in compiler.rs.
+use crate::ast::{Action, Condition, Rule, ThenClause, WhenClause};
+
 grammar;
+
+pub Rule: Rule = {
+    "rule" <name:Bare> "when" <conditions:Conditions> "then" <actions:Actions> => Rule {
+        name,
+        when_clause: WhenClause { conditions },
+        then_clause: ThenClause { actions },
+    }
+};
+
+Conditions: Vec<Condition> = {
+    <conditions:ConditionExpr*> => conditions,
+};
+
+ConditionExpr: Condition = {
+    <lhs:ConditionAtom> "and" <rhs:ConditionExpr> => Condition::And(Box::new(lhs), Box::new(rhs)),
+    ConditionAtom,
+};
+
+ConditionAtom: Condition = {
+    "extension" "==" <ext:Value> => Condition::Extension(ext),
+    "media_type" "==" <mime:Value> => Condition::MediaType(mime),
+    "contains_field" "(" <field:Value> ")" => Condition::ContainsField(field),
+    "class" "==" <class:Value> => Condition::Class(class),
+    "shape" "==" <shape:Value> => Condition::Shape(shape),
+};
+
+Actions: Vec<Action> = {
+    <actions:ActionExpr*> => actions,
+};
+
+ActionExpr: Action = {
+    "handler" "=" <value:Value> => Action::Handler(value),
+    "extract" "=" "[" <values:Comma<Value>> "]" => Action::Extract(values),
+    "embed" "=" "[" <values:Comma<Value>> "]" => Action::Embed(values),
+    "ontology" "=" <value:Value> => Action::Ontology(value),
+    "bucket" "=" <value:Value> => Action::Bucket(value),
+    "prefix" "=" <value:Value> => Action::Prefix(value),
+    "filename" "=" <value:Value> => Action::Filename(value),
+    "classify" "=" "[" <values:Comma<Value>> "]" => Action::Classify(values),
+    "tags" "=" "{" <entries:Comma<TagEntry>> "}" => Action::Tags(entries.into_iter().collect()),
+};
+
+TagEntry: (String, String) = {
+    <key:Value> ":" <value:Value> => (key, value),
+};
+
+Comma<T>: Vec<T> = {
+    <mut values:(<T> ",")*> <tail:T?> => match tail {
+        Some(value) => {
+            values.push(value);
+            values
+        }
+        None => values,
+    }
+};
+
+Bare: String = {
+    <value:r#"[^,"\[\]\(\)\s=]+"#> => value.to_string(),
+};
+
+Value: String = {
+    <quoted:r#""([^"\\]|\\.)*""#> => quoted[1..quoted.len() - 1].to_string(),
+    Bare,
+};

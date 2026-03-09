@@ -14,7 +14,7 @@ pub fn build_python_graph(blob_id: &str, source: &str) -> Result<SymbolGraph> {
 
     let mut graph = SymbolGraph::default();
     let query = Query::new(
-        tree_sitter_python::language(),
+        &tree_sitter_python::language(),
         "(function_definition name: (identifier) @fn.name)",
     )?;
     let mut cursor = QueryCursor::new();

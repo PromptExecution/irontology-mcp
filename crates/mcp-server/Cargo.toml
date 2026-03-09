@@ -9,6 +9,7 @@ async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 retrieval = { path = "../retrieval" }
+storage-neumann = { path = "../storage-neumann" }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt"] }

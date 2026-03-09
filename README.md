@@ -537,6 +537,8 @@ GREEN: implement indexer pipeline
 
 **Purpose:** Single `KnowledgeStore` trait. Neumann implements it. Other impls for testing.
 
+Current implementation note: Neumann now supports RDF-native Turtle ingestion for ontology resources and direct subject/predicate lookups over stored semantic triples. The current end-to-end path intentionally skips SPARQL in favor of loading stable semantic IRIs and traversing them as first-class graph data.
+
 ### 11.1 Trait
 
 ```rust
@@ -569,6 +571,23 @@ pub enum SemanticQuery {
     Lexical { query: String, top_k: usize },
     Hybrid  { embedding: Arc<[f32]>, sparql: Option<String>,
               lexical: Option<String>, weights: FusionWeights },
+}
+```
+
+Current semantic ingestion surface:
+
+```rust
+pub struct SemanticTriple {
+    pub source: String,     // e.g. ontology://naming_conventions
+    pub subject: String,    // durable semantic IRI
+    pub predicate: String,  // RDF predicate IRI
+    pub object: String,     // object IRI or literal
+}
+
+#[async_trait]
+pub trait KnowledgeStore: Send + Sync {
+    async fn ingest_turtle(&self, source: &str, turtle: &str) -> Result<()>;
+    async fn related_objects(&self, subject: &str, predicate: &str) -> Result<Vec<String>>;
 }
 ```
 
@@ -770,7 +789,8 @@ repo.search              repo.read_file           repo.read_symbol
 repo.trace_calls         repo.find_dependents      repo.index_status
 repo.reindex             repo.freeze_state         repo.attach_ontology
 intake.submit            intake.status
-ontology.list_classes    ontology.explain_shape    ontology.run_sparql
+ontology.list_classes    ontology.related_resources
+ontology.explain_shape
 rules.list               rules.compile             rules.apply
 agent.run                agent.batch_submit        agent.batch_status
 agent.delegate           agent.forward_mcp
@@ -786,6 +806,24 @@ ontology://classes        ontology://predicates     ontology://shapes
 ontology://naming_conventions                        ontology://query_languages
 rules://dsl_catalog       rules://handlers
 run://{id}               artifact://{id}
+```
+
+Current startup path:
+
+```rust
+McpServerRuntime::start_phase2(...)
+  -> build ResourceRegistry::with_phase2_resources()
+  -> ingest every text/turtle ontology resource into Neumann
+  -> register MCP tools, including ontology.related_resources
+```
+
+Current verification path:
+
+```rust
+crates/mcp-server/tests/startup_runtime.rs
+  -> boot McpServerRuntime::start_phase2(...)
+  -> assert ontology://naming_conventions is registered
+  -> call ontology.related_resources via MCP tool interface
 ```
 
 ### 14.3 Definition of Done
@@ -970,9 +1008,9 @@ Any object that exists in one projection MUST be queryable from the others via i
 | `codegraph` | Rust symbol graph built from `crates/domain`; call edges present |
 | `indexer` | watchexec triggers re-index on file change; unchanged files skipped |
 | `retrieval` | Hybrid query returns plausible results for known symbol name |
-| `storage-neumann` | `NeumannStore` passes all MemoryStore contract tests |
+| `storage-neumann` | `NeumannStore` passes contract tests and ingests ontology Turtle into semantic triples |
 | `dsl` | Receipt DSL rule compiles; file matched correctly |
-| `mcp-server` | `repo.search`, `ontology.list_classes` return results |
+| `mcp-server` | startup ingests ontology resources into Neumann; `repo.search`, `ontology.list_classes`, and `ontology.related_resources` return results |
 
 **Phase 2 DoD:** `examples/code-rag` resolves a symbol and traces call graph via MCP.
 
@@ -1103,4 +1141,3 @@ cargo run --example receipt-intake  # smoke
 | Neumann | unified runtime knowledge store |
 
 **Do not add:** `openai` SDK crate outside `provider-openai`. `sqlite` or `rusqlite` (libSQL only). Any Python runtime dependency in hot path.
-

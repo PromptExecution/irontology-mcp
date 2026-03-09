@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use petgraph::graph::{Graph, NodeIndex};
+use petgraph::visit::EdgeRef;
 
 use crate::{NodeUri, SymbolNode};
 
@@ -51,7 +52,21 @@ impl SymbolGraph {
         self.graph.node_weights()
     }
 
+    pub fn node_named(&self, name: &str) -> Option<&SymbolNode> {
+        self.graph.node_weights().find(|node| node.name == name)
+    }
+
     pub fn edges(&self) -> impl Iterator<Item = &EdgeKind> {
         self.graph.edge_weights()
+    }
+
+    pub fn edge_refs(&self) -> impl Iterator<Item = (&SymbolNode, &SymbolNode, &EdgeKind)> + '_ {
+        self.graph.edge_references().map(|edge| {
+            (
+                &self.graph[edge.source()],
+                &self.graph[edge.target()],
+                edge.weight(),
+            )
+        })
     }
 }
