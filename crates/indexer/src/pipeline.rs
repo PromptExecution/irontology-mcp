@@ -1,7 +1,10 @@
-use std::{path::Path, sync::Arc};
+use std::path::Path;
 
 use anyhow::Result;
 use async_trait::async_trait;
+use provider_api::{EmbedRequest, ModelProvider};
+use serde_json::json;
+use storage_neumann::{EmbeddingRecord, FactRecord, FileRecord, KnowledgeStore};
 
 use crate::{chunking::chunk_text, embedding::Modality};
 
@@ -40,23 +43,6 @@ pub struct Extraction {
     pub has_symbols: bool,
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct EmbedRequest {
-    pub inputs: Vec<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct EmbedResponse {
-    pub vectors: Vec<Arc<[f32]>>,
-}
-
-#[derive(Debug, Clone)]
-pub struct EmbeddingRecord {
-    pub source_blob: String,
-    pub vector: Arc<[f32]>,
-    pub modality: Modality,
-}
-
 #[async_trait]
 pub trait GitLedger: Send + Sync {
     async fn blob_id(&self, path: &Path) -> Result<String>;
@@ -69,17 +55,6 @@ pub trait RuleMatcher: Send + Sync {
 #[async_trait]
 pub trait Handler: Send + Sync {
     async fn extract(&self, file: &IntakeFile) -> Result<Extraction>;
-}
-
-#[async_trait]
-pub trait KnowledgeStore: Send + Sync {
-    async fn has_blob(&self, blob_id: &str) -> Result<bool>;
-    async fn upsert_embeddings(&self, embeddings: Vec<EmbeddingRecord>) -> Result<()>;
-}
-
-#[async_trait]
-pub trait ModelProvider: Send + Sync {
-    async fn embed(&self, req: EmbedRequest) -> Result<EmbedResponse>;
 }
 
 pub async fn index_file(
@@ -106,10 +81,63 @@ pub async fn index_file(
         return Ok(false);
     }
 
-    let embeddings = provider.embed(EmbedRequest { inputs: chunks }).await?;
+    let file_id = format!("file:git:blob:{blob_id}");
+    store
+        .upsert_file(FileRecord {
+            id: file_id.clone(),
+            blob: blob_id.clone(),
+            path: intake.path.clone(),
+            media_type: intake.media_type.clone(),
+            size: std::fs::metadata(path)
+                .map(|meta| meta.len())
+                .unwrap_or_default(),
+            commit: blob_id.clone(),
+        })
+        .await?;
+    let mut facts = vec![
+        FactRecord {
+            subject: file_id.clone(),
+            predicate: "path".to_string(),
+            object: json!(intake.path),
+        },
+        FactRecord {
+            subject: file_id.clone(),
+            predicate: "media_type".to_string(),
+            object: json!(intake.media_type),
+        },
+        FactRecord {
+            subject: file_id.clone(),
+            predicate: "extension".to_string(),
+            object: json!(intake.extension),
+        },
+    ];
+    if let Some(class) = &intake.class {
+        facts.push(FactRecord {
+            subject: file_id.clone(),
+            predicate: "class".to_string(),
+            object: json!(class),
+        });
+    }
+    if let Some(shape) = &intake.shape {
+        facts.push(FactRecord {
+            subject: file_id.clone(),
+            predicate: "shape".to_string(),
+            object: json!(shape),
+        });
+    }
+    store.upsert_facts(facts).await?;
+
+    let embeddings = provider
+        .embed(EmbedRequest {
+            model: provider.model_id().to_string(),
+            inputs: chunks,
+            batch_size: 32,
+        })
+        .await?;
     let mut records = Vec::new();
-    for vector in embeddings.vectors {
+    for (index, vector) in embeddings.vectors.into_iter().enumerate() {
         records.push(EmbeddingRecord {
+            id: format!("{file_id}#chunk-{index}"),
             source_blob: blob_id.clone(),
             vector,
             modality: if extraction.has_symbols {
@@ -117,6 +145,7 @@ pub async fn index_file(
             } else {
                 Modality::DocChunk
             },
+            semantic_weight: 1.0,
         });
     }
     store.upsert_embeddings(records).await?;

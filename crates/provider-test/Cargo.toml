@@ -1,18 +1,12 @@
 [package]
-name = "dsl"
+name = "provider-test"
 version.workspace = true
 edition.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-lalrpop-util = { version = "0.20", features = ["lexer"] }
+async-trait.workspace = true
 provider-api = { path = "../provider-api" }
-serde.workspace = true
-
-[build-dependencies]
-lalrpop = "0.20"
 
 [dev-dependencies]
-pretty_assertions = "1"
-provider-test = { path = "../provider-test" }
 tokio = { version = "1", features = ["macros", "rt"] }

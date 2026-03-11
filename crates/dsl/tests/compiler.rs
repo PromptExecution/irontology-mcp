@@ -106,7 +106,9 @@ rule receipt_naming
         vec![
             Action::Bucket("finance-docs-au".to_string()),
             Action::Prefix("financial/receipt/{vendor_slug}/{yyyy}/{mm}/".to_string()),
-            Action::Filename("{date}_{vendor_slug}_{total_minor}_{currency}_receipt.pdf".to_string()),
+            Action::Filename(
+                "{date}_{vendor_slug}_{total_minor}_{currency}_receipt.pdf".to_string()
+            ),
             Action::Tags(tags),
         ]
     );

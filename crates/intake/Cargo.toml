@@ -1,0 +1,17 @@
+[package]
+name = "intake"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+classifier = { path = "../classifier" }
+handlers = { path = "../handlers" }
+naming = { path = "../naming" }
+
+[dev-dependencies]
+async-trait.workspace = true
+bytes = "1"
+dsl = { path = "../dsl" }
+serde_json.workspace = true
+tokio = { version = "1", features = ["macros", "rt"] }

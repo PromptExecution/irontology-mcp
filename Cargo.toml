@@ -5,6 +5,16 @@ members = [
   "crates/codegraph",
   "crates/indexer",
   "crates/dsl",
+  "crates/provider-api",
+  "crates/provider-openai",
+  "crates/provider-local",
+  "crates/provider-test",
+  "crates/tomllm",
+  "crates/handlers",
+  "crates/classifier",
+  "crates/naming",
+  "crates/intake",
+  "crates/orchestrator",
   "crates/retrieval",
   "crates/storage-neumann",
   "crates/mcp-server",
@@ -21,3 +31,4 @@ async-trait = "0.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["rt", "macros"] }
+toml = "0.8"

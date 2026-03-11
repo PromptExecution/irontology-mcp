@@ -1,7 +1,1 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Modality {
-    CodeSymbol,
-    DocChunk,
-    OntologyNode,
-    TestCase,
-}
+pub use storage_neumann::EmbeddingModality as Modality;

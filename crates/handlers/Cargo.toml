@@ -1,16 +1,14 @@
 [package]
-name = "indexer"
+name = "handlers"
 version.workspace = true
 edition.workspace = true
 
 [dependencies]
 anyhow.workspace = true
 async-trait.workspace = true
-dsl = { path = "../dsl" }
-provider-api = { path = "../provider-api" }
+bytes = "1"
 serde.workspace = true
 serde_json.workspace = true
-storage-neumann = { path = "../storage-neumann" }
 tokio.workspace = true
 
 [dev-dependencies]
