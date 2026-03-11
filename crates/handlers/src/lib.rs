@@ -2,7 +2,9 @@ use std::{cmp::Ordering, collections::BTreeMap, sync::Arc};
 
 use anyhow::Result;
 use async_trait::async_trait;
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use bytes::Bytes;
+use forward_mcp::{ForwardRequest, McpForwarder, ReturnMode};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -80,6 +82,95 @@ pub trait McpExtractorClient: Send + Sync {
     async fn extract(&self, target: &str, file: &IntakeFile) -> Result<Extraction>;
 }
 
+pub struct ForwardMcpExtractorClient {
+    task: String,
+    allowed_tools: Vec<String>,
+    allowed_resources: Vec<String>,
+    allowed_prompts: Vec<String>,
+    context: Vec<String>,
+    budget_tokens: Option<u32>,
+    timeout_ms: Option<u64>,
+    return_mode: ReturnMode,
+    forwarder: Arc<dyn McpForwarder>,
+}
+
+impl ForwardMcpExtractorClient {
+    pub fn new(forwarder: Arc<dyn McpForwarder>) -> Self {
+        Self {
+            task: "Extract structured facts from the provided file".to_string(),
+            allowed_tools: Vec::new(),
+            allowed_resources: Vec::new(),
+            allowed_prompts: Vec::new(),
+            context: Vec::new(),
+            budget_tokens: Some(8_000),
+            timeout_ms: Some(30_000),
+            return_mode: ReturnMode::Structured,
+            forwarder,
+        }
+    }
+
+    pub fn with_task(mut self, task: impl Into<String>) -> Self {
+        self.task = task.into();
+        self
+    }
+
+    pub fn with_allowed_tools(
+        mut self,
+        tools: impl IntoIterator<Item = impl Into<String>>,
+    ) -> Self {
+        self.allowed_tools = tools.into_iter().map(Into::into).collect();
+        self
+    }
+
+    pub fn with_allowed_resources(
+        mut self,
+        resources: impl IntoIterator<Item = impl Into<String>>,
+    ) -> Self {
+        self.allowed_resources = resources.into_iter().map(Into::into).collect();
+        self
+    }
+
+    pub fn with_allowed_prompts(
+        mut self,
+        prompts: impl IntoIterator<Item = impl Into<String>>,
+    ) -> Self {
+        self.allowed_prompts = prompts.into_iter().map(Into::into).collect();
+        self
+    }
+
+    pub fn with_context(mut self, context: impl IntoIterator<Item = impl Into<String>>) -> Self {
+        self.context = context.into_iter().map(Into::into).collect();
+        self
+    }
+}
+
+#[async_trait]
+impl McpExtractorClient for ForwardMcpExtractorClient {
+    async fn extract(&self, target: &str, file: &IntakeFile) -> Result<Extraction> {
+        let response = self
+            .forwarder
+            .forward(ForwardRequest {
+                target: target.to_string(),
+                task: self.task.clone(),
+                allowed_tools: self.allowed_tools.clone(),
+                allowed_resources: self.allowed_resources.clone(),
+                allowed_prompts: self.allowed_prompts.clone(),
+                context: self.context.clone(),
+                budget_tokens: self.budget_tokens,
+                timeout_ms: self.timeout_ms,
+                return_mode: self.return_mode,
+                payload: serde_json::json!({
+                    "sha256": hex_digest(&file.sha256),
+                    "path_hint": file.path_hint,
+                    "media_type": file.media_type,
+                    "bytes_b64": STANDARD.encode(file.bytes.as_ref()),
+                }),
+            })
+            .await?;
+        Ok(serde_json::from_value(response.output)?)
+    }
+}
+
 pub struct McpHandler {
     name: String,
     target: String,
@@ -122,6 +213,15 @@ impl FileHandler for McpHandler {
     }
 }
 
+fn hex_digest(bytes: &[u8; 32]) -> String {
+    let mut hex = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        use std::fmt::Write as _;
+        let _ = write!(&mut hex, "{byte:02x}");
+    }
+    hex
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::{Arc, Mutex};
@@ -129,11 +229,12 @@ mod tests {
     use anyhow::Result;
     use async_trait::async_trait;
     use bytes::Bytes;
+    use forward_mcp::{ForwardResponse, StaticForwarder};
     use serde_json::json;
 
     use crate::{
-        Entity, Extraction, FileHandler, HandlerRegistry, HandlerScore, IntakeFile,
-        McpExtractorClient, McpHandler, MoneyValue, TemporalValue,
+        Entity, Extraction, FileHandler, ForwardMcpExtractorClient, HandlerRegistry, HandlerScore,
+        IntakeFile, McpExtractorClient, McpHandler, MoneyValue, TemporalValue,
     };
 
     struct StaticHandler {
@@ -201,6 +302,34 @@ mod tests {
             seen.lock().expect("seen").as_slice(),
             &["stdio://child:python-worker".to_string()]
         );
+    }
+
+    #[tokio::test]
+    async fn forward_mcp_client_builds_structured_request_and_decodes_output() {
+        let forwarder = StaticForwarder::new(ForwardResponse {
+            target: "stdio://child:python-worker".to_string(),
+            output: serde_json::to_value(sample_extraction()).expect("serialize extraction"),
+            trace: vec!["delegated".to_string()],
+            artifacts: vec![],
+        });
+        let client = ForwardMcpExtractorClient::new(Arc::new(forwarder.clone()))
+            .with_task("extract receipt fields")
+            .with_allowed_tools(["repo.search"])
+            .with_allowed_resources(["repo://tree"])
+            .with_allowed_prompts(["delegate_task"])
+            .with_context(["repo://tree"]);
+
+        let extraction = client
+            .extract("stdio://child:python-worker", &sample_file())
+            .await
+            .expect("extract");
+        let seen = forwarder.seen_requests();
+
+        assert_eq!(extraction.detected_kind, "receipt");
+        assert_eq!(seen[0].task, "extract receipt fields");
+        assert_eq!(seen[0].allowed_tools, vec!["repo.search".to_string()]);
+        assert_eq!(seen[0].payload["media_type"], json!("application/pdf"));
+        assert!(seen[0].payload["bytes_b64"].as_str().expect("b64").len() > 0);
     }
 
     fn sample_file() -> IntakeFile {

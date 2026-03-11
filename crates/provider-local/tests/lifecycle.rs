@@ -1,9 +1,4 @@
-use std::{
-    env,
-    net::TcpListener,
-    path::PathBuf,
-    time::Duration,
-};
+use std::{env, net::TcpListener, path::PathBuf, time::Duration};
 
 use provider_api::{ChatMessage, ModelProvider};
 use provider_local::{LocalProvider, LocalProviderConfig, MistralRsConfig};
@@ -78,18 +73,13 @@ async fn managed_provider_recovers_after_process_exit() {
 }
 
 fn mock_config(lifetime: Option<Duration>) -> MistralRsConfig {
-    let mut config = MistralRsConfig::new(
-        free_port(),
-        "mock-model",
-        "/models/mock.Q4_K_M.gguf",
-    );
-    config.program = mock_binary_path()
-        .to_string_lossy()
-        .into_owned();
+    let mut config = MistralRsConfig::new(free_port(), "mock-model", "/models/mock.Q4_K_M.gguf");
+    config.program = mock_binary_path().to_string_lossy().into_owned();
     if let Some(lifetime) = lifetime {
-        config
-            .extra_args
-            .extend(["--lifetime-ms".to_string(), lifetime.as_millis().to_string()]);
+        config.extra_args.extend([
+            "--lifetime-ms".to_string(),
+            lifetime.as_millis().to_string(),
+        ]);
     }
     config.startup_timeout = Duration::from_secs(5);
     config.health_poll_interval = Duration::from_millis(50);

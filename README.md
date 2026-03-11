@@ -811,19 +811,42 @@ run://{id}               artifact://{id}
 Current startup path:
 
 ```rust
-McpServerRuntime::start_phase2(...)
-  -> build ResourceRegistry::with_phase2_resources()
-  -> ingest every text/turtle ontology resource into Neumann
-  -> register MCP tools, including ontology.related_resources
+Phase2RuntimeConfig::new(...)
+  -> optional .with_transport_forwarding()
+  -> optional .with_watch(WatchRuntimeConfig { ... })
+  -> McpServerRuntime::start_phase2_configured(...)
+      -> build ResourceRegistry::with_phase2_resources()
+      -> ingest every text/turtle ontology resource into Neumann
+      -> register MCP tools, including ontology.related_resources, agent.run, agent.forward_mcp
+      -> optionally spawn watchexec against the shared Neumann store
+```
+
+Current transport surface:
+
+```rust
+McpServerRuntime::serve_stdio()
+McpServerRuntime::router(...)
+
+JSON-RPC methods currently handled:
+  initialize
+  ping
+  tools/list
+  tools/call
+  resources/list
+  resources/read
 ```
 
 Current verification path:
 
 ```rust
 crates/mcp-server/tests/startup_runtime.rs
-  -> boot McpServerRuntime::start_phase2(...)
-  -> assert ontology://naming_conventions is registered
-  -> call ontology.related_resources via MCP tool interface
+  -> startup ingests ontology resources into Neumann
+  -> transport-backed agent.forward_mcp works over HTTP
+  -> startup watcher indexes a changed file into the shared store
+
+crates/mcp-server/tests/transport.rs
+  -> stdio and HTTP return identical tools/list payloads
+  -> stdio and HTTP return identical tools/call payloads
 ```
 
 ### 14.3 Definition of Done
@@ -940,14 +963,31 @@ GREEN: implement orchestrator + policy
 
 ## §16 Crate: `cli`
 
-**Purpose:** Standalone daemon entrypoint.
+**Purpose:** Standalone low-frills daemon entrypoint for the Phase 2 runtime.
 
 ```
-promptexecution serve            # start MCP + HTTP
-promptexecution index [path]     # one-shot index
-promptexecution freeze [label]   # git-ledger snapshot
-promptexecution query [sparql]   # SPARQL against ontology
-promptexecution rules compile    # prompt → DSL
+cargo run -p cli --bin phase2d -- stdio
+cargo run -p cli --bin phase2d -- http --addr 127.0.0.1:3000
+cargo run -p cli --bin phase2d -- http --addr 127.0.0.1:3000 --watch .
+```
+
+Current bootstrap behavior:
+
+```rust
+phase2d
+  -> builds Phase2RuntimeConfig::new(NeumannConfig::default())
+  -> enables TransportForwarder by default
+  -> optionally enables WatchRuntimeConfig via --watch
+  -> uses DeterministicBackend + provider-test fixture provider as the default low-frills runtime
+```
+
+Current verification path:
+
+```rust
+crates/cli/tests/stdio.rs
+  -> spawn phase2d stdio
+  -> issue tools/list over stdin
+  -> assert repo.search is present in the MCP registry
 ```
 
 ---
@@ -993,8 +1033,8 @@ Any object that exists in one projection MUST be queryable from the others via i
 | `tomllm` | Hint layer never allocated; round-trip test green |
 | `git-ledger` | `blob_id` deterministic; `attach_triples` + `read_triples` round-trip |
 | `storage-neumann` | `MemoryStore` passes all trait contract tests |
-| `mcp-server` | `tools/list` returns registry; stdio transport works |
-| `cli` | `serve` starts daemon; `index .` completes without panic |
+| `mcp-server` | `tools/list` returns registry; incoming stdio JSON-RPC works |
+| `cli` | `phase2d stdio` boots and serves `tools/list` without panic |
 
 **Phase 1 DoD:** `examples/aemo-nmi` runs. Single-turn MCP tool call returns structured result.
 
@@ -1010,7 +1050,7 @@ Any object that exists in one projection MUST be queryable from the others via i
 | `retrieval` | Hybrid query returns plausible results for known symbol name |
 | `storage-neumann` | `NeumannStore` passes contract tests and ingests ontology Turtle into semantic triples |
 | `dsl` | Receipt DSL rule compiles; file matched correctly |
-| `mcp-server` | startup ingests ontology resources into Neumann; `repo.search`, `ontology.list_classes`, and `ontology.related_resources` return results |
+| `mcp-server` | startup ingests ontology resources into Neumann; stdio/HTTP transport parity holds for `tools/list` and `tools/call`; watcher startup is supported |
 
 **Phase 2 DoD:** `examples/code-rag` resolves a symbol and traces call graph via MCP.
 

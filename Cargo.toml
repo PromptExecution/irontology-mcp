@@ -15,9 +15,11 @@ members = [
   "crates/naming",
   "crates/intake",
   "crates/orchestrator",
+  "crates/forward-mcp",
   "crates/retrieval",
   "crates/storage-neumann",
   "crates/mcp-server",
+  "crates/cli",
 ]
 
 [workspace.package]

@@ -1,0 +1,67 @@
+use std::{path::PathBuf, process::Stdio};
+
+use serde_json::json;
+use tokio::{
+    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
+    process::Command,
+};
+
+#[tokio::test]
+async fn cli_stdio_serves_tools_list() {
+    let binary = binary_path("phase2d");
+    let mut child = Command::new(binary)
+        .arg("stdio")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("spawn phase2d");
+
+    let mut stdin = child.stdin.take().expect("stdin");
+    let stdout = child.stdout.take().expect("stdout");
+    let request = json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/list",
+        "params": {}
+    });
+
+    stdin
+        .write_all(format!("{request}\n").as_bytes())
+        .await
+        .expect("write request");
+    stdin.shutdown().await.expect("close stdin");
+    drop(stdin);
+
+    let mut lines = BufReader::new(stdout).lines();
+    let response = lines
+        .next_line()
+        .await
+        .expect("read line")
+        .expect("response");
+    let json: serde_json::Value = serde_json::from_str(&response).expect("parse response");
+
+    assert!(json["result"]["tools"]
+        .as_array()
+        .expect("tool array")
+        .iter()
+        .any(|tool| tool["name"] == "repo.search"));
+
+    let status = tokio::time::timeout(std::time::Duration::from_secs(10), child.wait())
+        .await
+        .expect("child exit timeout")
+        .expect("wait for child");
+    assert!(status.success());
+}
+
+fn binary_path(name: &str) -> PathBuf {
+    if let Ok(path) = std::env::var(format!("CARGO_BIN_EXE_{name}")) {
+        return PathBuf::from(path);
+    }
+
+    std::env::current_exe()
+        .expect("current exe")
+        .parent()
+        .and_then(|dir| dir.parent())
+        .map(|dir| dir.join(name))
+        .expect("derive cargo bin path")
+}

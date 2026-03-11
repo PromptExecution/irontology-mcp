@@ -11,3 +11,7 @@ pub use storage_neumann::{
     EdgeKind, EdgeRecord, EmbeddingModality, EmbeddingRecord, FactRecord, FileRecord,
     KnowledgeStore, SemanticQuery, StoreHealth,
 };
+pub use watcher::{
+    reindex_changed_paths, run_watchexec, spawn_watchexec, ChangeProcessor,
+    IndexingChangeProcessor, WatchConfig, WatchEvent, WatchSummary, WatchexecRuntime,
+};
