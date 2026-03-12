@@ -1,86 +1,138 @@
 # `promptexecution`
 
-Rust MCP runtime for ontology-driven code and document systems.
+Rust MCP runtime for enterprise knowledge ingestion, latent ontology discovery, and downstream impact analysis.
 
-The project is pivoting to a clearer runtime boundary:
+The system is not primarily a code-understanding tool. Code is only one source class among many.
 
-- Rust remains the host, type system, storage layer, and MCP server.
-- Rhai becomes the embedded behavior runtime for ontology-defined object extensions.
-- Python remains available, but only as a logical executor for interop with LLM/agent tooling, ontology discovery, and curation of Rhai-facing schemas.
-- Git remains the immutable semantic ledger.
-- Neumann remains the live semantic store for facts, graph edges, and embeddings.
+The broader goal is to ingest and correlate:
 
-This keeps the binary stable while allowing ontology behavior to evolve from data and scripts rather than Rust recompiles.
+- program code from one or more git repositories
+- architecture documents
+- project plans
+- meeting notes
+- presentations
+- diagrams and process maps
+- database schemas and records
+- content from silos such as SharePoint
 
-## Why This Pivot
+and turn that material into a queryable semantic substrate that helps agents and humans:
 
-The earlier direction mixed three concerns:
+- discover hidden dependencies
+- distinguish overloaded terms that mean different things in different domains
+- understand downstream impacts of changes
+- surface missing or contradictory assumptions
+- support architectural and operational decision-making
 
-- schema validation
-- runtime object behavior
-- agentic external tool interop
+## Core Thesis
 
-That blurred the boundary between "what an ontology object is" and "how agents or external tools reason about it".
+Organizations already contain a latent ontology.
 
-The new stance is:
+It is scattered across:
 
-- validation belongs at the host boundary
-- object behavior belongs in a constrained embedded runtime
-- Python belongs at the edge for tool interoperability, not at the core of object execution
+- source code
+- naming conventions
+- schemas
+- slide decks
+- architecture artifacts
+- meeting language
+- operational records
+- file structures
 
-## Core Model
+The same term can mean different things in different areas. The same dependency can appear as:
 
-An ontology extension should be able to add:
+- a code import
+- a business rule in a meeting note
+- a process handoff in a diagram
+- a column dependency in a database schema
+- an ownership boundary in an architecture document
 
-- fields
-- validation constraints
-- derived properties
-- enrichment logic
-- graph emission rules
-- naming/storage logic
+The system should not assume those ideas are already precise. It must extract evidence, preserve provenance, infer candidate semantics, and progressively build a usable ontology of the enterprise.
 
-without requiring a new Rust binary for each extension.
+## What This Runtime Is
 
-What it should not do is mutate the host contract itself at runtime. Rust traits stay fixed. Runtime extensions plug into those traits through a stable adapter.
+The runtime has four jobs:
+
+1. Ingest heterogeneous artifacts from many systems.
+2. Convert them into evidence-bearing semantic objects.
+3. Correlate those objects across silos to discover shared or conflicting meaning.
+4. Expose the resulting knowledge through MCP so agents can explore impacts and dependencies safely.
+
+## What This Runtime Is Not
+
+It is not:
+
+- just a code graph
+- just a vector database
+- just a document search tool
+- just an RDF store
+- just an agent shell
+
+It is a semantic runtime that combines all of those as supporting capabilities.
 
 ## Architecture
 
 ```text
-                           +----------------------+
-                           |   MCP clients/tools  |
-                           +----------+-----------+
-                                      |
-                         JSON-RPC stdio / HTTP MCP
-                                      |
-                 +--------------------v--------------------+
-                 |              Rust host core             |
-                 |-----------------------------------------|
-                 | mcp-server                              |
-                 | orchestrator                            |
-                 | retrieval                               |
-                 | intake / handlers / naming / classifier |
-                 | provider-api                            |
-                 +---------+----------------+--------------+
-                           |                |
-                           |                |
-                +----------v----+     +-----v------------------+
-                |  Rhai runtime  |     | Python logical executor|
-                |----------------|     |------------------------|
-                | ontology hooks |     | agent tool interop     |
-                | derived fields |     | discovery pipelines    |
-                | routing logic  |     | schema curation        |
-                | graph emitters |     | offline workflows      |
-                +----------+-----+     +-----------+------------+
-                           |                         |
-                           +------------+------------+
+                    +----------------------------------+
+                    |      Source systems / silos      |
+                    |----------------------------------|
+                    | git repos                        |
+                    | SharePoint / file stores         |
+                    | wiki / docs / notes             |
+                    | presentations / PDFs             |
+                    | diagrams / process models        |
+                    | DB schemas / operational records |
+                    +----------------+-----------------+
+                                     |
+                          connectors / extractors
+                                     |
+                   +-----------------v------------------+
+                   |     Normalized artifact layer      |
+                   |------------------------------------|
+                   | Artifact                           |
+                   | Anchor / span / section            |
+                   | metadata / source identity         |
+                   | timestamps / provenance            |
+                   +-----------------+------------------+
+                                     |
+                          extraction / interpretation
+                                     |
+              +----------------------v----------------------+
+              |             Evidence and claims             |
+              |---------------------------------------------|
+              | entities                                    |
+              | candidate concepts                          |
+              | relations                                   |
+              | schema observations                         |
+              | process steps                               |
+              | confidence + provenance                     |
+              +----------------------+----------------------+
+                                     |
+                    resolution / induction / disambiguation
+                                     |
+      +------------------------------v-------------------------------+
+      |                Enterprise semantic runtime                    |
+      |---------------------------------------------------------------|
+      | ontology candidates                                            |
+      | contextual namespaces                                          |
+      | resolved entities                                              |
+      | hidden dependency graph                                        |
+      | impact paths                                                   |
+      | agent-facing discovery surface                                 |
+      +---------------------+-------------------+----------------------+
+                            |                   |
+                            |                   |
+              +-------------v----+    +--------v------------------+
+              |   Rhai runtime   |    | Python logical executor   |
+              |------------------|    |---------------------------|
+              | mapping policies |    | connector interop         |
+              | enrichment rules |    | document/diagram tooling  |
+              | disambiguation   |    | LLM discovery workflows   |
+              | impact heuristics|    | schema curation           |
+              +-------------+----+    +------------+--------------+
+                            |                      |
+                            +-----------+----------+
                                         |
-                           +------------v------------+
-                           | Validated host adapter  |
-                           |-------------------------|
-                           | fixed Rust trait surface|
-                           | schema boundary         |
-                           | audit / limits          |
-                           +------------+------------+
+                              validated Rust host boundary
                                         |
                 +-----------------------+------------------------+
                 |                                                |
@@ -91,101 +143,207 @@ What it should not do is mutate the host contract itself at runtime. Rust traits
       | graph edges        |                         | snapshots / replay      |
       | embeddings         |                         | manifests / provenance  |
       +--------------------+                         +-------------------------+
+                                        |
+                              +---------v---------+
+                              | MCP / decision    |
+                              | support surface   |
+                              +-------------------+
 ```
 
-## Ontology Runtime Extension Flow
+## Semantic Layers
+
+The runtime should separate at least four layers.
+
+### 1. Source Layer
+
+What was actually found.
+
+Examples:
+
+- file in SharePoint
+- git blob
+- schema DDL
+- slide deck
+- BPMN diagram
+- note page
+
+### 2. Evidence Layer
+
+What was extracted from the source.
+
+Examples:
+
+- a quoted statement
+- a table definition
+- a process step
+- a system name
+- a role or owner
+- a dependency claim
+
+This layer must preserve provenance and confidence.
+
+### 3. Semantic Layer
+
+What the system believes these artifacts mean.
+
+Examples:
+
+- candidate concepts
+- candidate equivalences
+- competing definitions
+- contextualized "standing data" interpretations
+- inferred relationships
+
+This is where ambiguity is modeled, not hidden.
+
+### 4. Impact Layer
+
+What changes imply.
+
+Examples:
+
+- if system A changes, which documents, processes, teams, schemas, and applications are affected
+- which concepts depend on a field or policy that is defined only informally
+- where terminology drift suggests hidden coupling or decision risk
+
+## Why Context Matters
+
+A term like `standing data` is not globally meaningful on its own.
+
+The system must be able to say:
+
+- `standing data` in market operations
+- `standing data` in enterprise architecture
+- `standing data` in records or governance
+
+Those may overlap, conflict, or only partially align.
+
+So the runtime must model:
+
+- local meaning
+- namespace / business context
+- source provenance
+- temporal validity
+- confidence
+- equivalence or non-equivalence with other concepts
+
+The ontology is therefore not just a fixed taxonomy. It is a living, evidence-backed semantic model of the organization.
+
+## Runtime Roles After The Pivot
+
+### Rust Host
+
+Rust remains the authority for:
+
+- host contracts and type safety
+- storage and retrieval
+- MCP transport and serving
+- validation boundaries
+- execution limits
+- provenance and replay
+- orchestration and policy enforcement
+
+### Rhai
+
+Rhai is the embedded runtime for configurable semantic behavior inside the host process.
+
+Its role is to support:
+
+- source-specific mapping rules
+- concept disambiguation policies
+- enrichment and derived fields
+- relation emission
+- naming and routing logic
+- impact heuristics
+- MCP-facing semantic projections
+
+Rhai is not the source of truth for the host contract. It runs behind a fixed Rust adapter.
+
+### Python
+
+Python remains in scope, but as a logical executor rather than the core runtime object system.
+
+Its role is to support:
+
+- interoperability with external LLM/agent ecosystems
+- document-specific and diagram-specific tooling
+- complex extractors not worth reimplementing in Rust
+- ontology discovery workflows
+- curation of Rhai-facing schemas and rule bundles
+- offline or batch enrichment pipelines
+
+Python should remain outside the critical in-process object runtime boundary.
+
+## Ontology Extension Flow
 
 ```text
-ontology bundle
+source artifact
   |
-  +-- ontology metadata
-  +-- schema fragment
-  +-- Rhai behavior module
-  +-- optional Python discovery recipe
+  +-- code / schema / note / slide / diagram / record
   |
   v
-validate at host boundary
+extractor pipeline
   |
-  +-- JSON Schema / host rules
-  +-- SHACL/OWL classification inputs
-  +-- allowed hook surface check
-  |
-  v
-compile / load Rhai
-  |
-  +-- register host functions
-  +-- bind object context
-  +-- apply execution limits
+  +-- native Rust extractor
+  +-- Python executor
+  +-- MCP-forwarded specialist worker
   |
   v
-runtime object behavior
+normalized evidence bundle
   |
-  +-- derive fields
-  +-- emit ontology edges
-  +-- choose storage/naming plan
-  +-- expose MCP-discoverable semantics
+  +-- anchors
+  +-- observations
+  +-- candidate entities
+  +-- candidate relations
+  +-- confidence + provenance
+  |
+  v
+ontology interpretation
+  |
+  +-- validate against host schema
+  +-- apply Rhai mapping / enrichment
+  +-- resolve contextual namespaces
+  +-- generate candidate ontology objects
+  |
+  v
+correlation and dependency graph
+  |
+  +-- resolved entities
+  +-- conflicts / overlaps
+  +-- hidden dependencies
+  +-- impact paths
   |
   v
 persist to Neumann + snapshot to Git
+  |
+  v
+serve through MCP for agent exploration
 ```
 
-## Python's Role After The Pivot
+## Primary Runtime Abstractions
 
-Python is still in scope, but no longer as the core object runtime.
+The system should evolve toward generic enterprise abstractions rather than code-specific ones.
 
-Python workflows are retained for:
+Likely core objects:
 
-- external LLM/agent tool interoperability
-- ontology discovery pipelines
-- semantic analysis and curation workflows
-- generation or refinement of Rhai schema/config artifacts
-- batch offline processing that does not need to live inside the host process
+- `SourceSystem`
+- `Artifact`
+- `Anchor`
+- `Observation`
+- `Claim`
+- `Concept`
+- `Entity`
+- `Relation`
+- `ContextNamespace`
+- `EvidenceBundle`
+- `ImpactPath`
+- `DecisionSupportView`
 
-Python is not the authority for:
+Code symbols, database tables, process steps, and architecture components then become specializations or projections of those more general objects.
 
-- canonical runtime object behavior
-- host-side validation contracts
-- core ontology execution inside the daemon
+## Current Workspace
 
-That means the system can still hand work to Python over MCP or other executor boundaries, but a running ontology object inside `phase2d` is still mediated by Rust and Rhai.
-
-## Runtime Contracts
-
-The host contract stays in Rust. Extensions plug into it.
-
-Examples of stable host-side traits already present in the workspace:
-
-- `ModelProvider`
-- `KnowledgeStore`
-- `FileHandler`
-- `Classifier`
-- `NamingPolicy`
-- `AgentExecutor`
-- MCP `Tool` and `Resource` surfaces
-
-The runtime-extensible layer should not attempt to create new Rust trait impls dynamically. Instead, it should provide a stable adapter shape such as:
-
-```text
-ontology object data
-  -> validate
-  -> bind host context
-  -> execute Rhai hook
-  -> map result back into Rust contract
-```
-
-Likely hook categories:
-
-- `validate_object`
-- `derive_fields`
-- `classify`
-- `emit_edges`
-- `storage_plan`
-- `display_label`
-- `mcp_projection`
-
-## Workspace
-
-Current workspace crates:
+Current crates:
 
 ```text
 crates/
@@ -212,16 +370,18 @@ crates/
 
 ## Current Implemented Spine
 
-The repo already has the core Phase 2 runtime skeleton:
+Today the implemented path is still biased toward local repo and code/document ingestion, because that is the most mature slice so far.
 
-- `mcp-server` with incoming JSON-RPC over stdio and HTTP
+Already present:
+
+- `mcp-server` with stdio and HTTP JSON-RPC transport
 - `phase2d` daemon entrypoint in `crates/cli`
 - `forward-mcp` transport for stdio and HTTP delegation
-- `provider-local` managed local OpenAI-compatible model adapter
+- `provider-local` for managed local OpenAI-compatible serving
 - `indexer` watcher runtime with `watchexec`
 - `storage-neumann` as the live semantic store
 - ontology resources ingested at startup
-- DSL parsing and rule-driven intake foundations
+- DSL foundations for rule-driven ingestion
 
 Current startup examples:
 
@@ -231,112 +391,70 @@ cargo run -p cli --bin phase2d -- http --addr 127.0.0.1:3000
 cargo run -p cli --bin phase2d -- http --addr 127.0.0.1:3000 --watch .
 ```
 
-## New Direction For Configuration
+## Where The Design Needs To Broaden
 
-The next runtime configuration layer should move from hardcoded startup defaults to a data-driven bundle:
+The next architectural step is not just "better code indexing".
 
-```text
-runtime config
-  |
-  +-- provider config
-  +-- store config
-  +-- watch roots
-  +-- forward-MCP targets
-  +-- ontology registry
-  +-- schema registry
-  +-- Rhai packages/modules
-  +-- Python executor targets
-```
+It is:
 
-That bundle should be loadable without rebuilding the binary.
+- generalized connectors for multiple silos
+- an artifact/evidence model that is not code-centric
+- contextual ontology induction
+- correlation across repositories, documents, schemas, and process artifacts
+- decision-support views over discovered dependencies
 
-## Recommended Extension Split
+## Next Direction For Configuration
 
-```text
-Rust host
-  - type safety
-  - storage
-  - transport
-  - validation boundary
-  - limits / audit / replay
+The hardcoded bootstrap in `phase2d` should be replaced by a runtime bundle that can describe:
 
-Rhai
-  - embedded runtime behavior
-  - ontology object hooks
-  - dynamic derived fields
-  - configurable graph / naming logic
+- source connectors
+- extractor registrations
+- Neumann/store config
+- watch roots and polling scopes
+- ontology registries
+- schema registries
+- Rhai modules and packages
+- Python executor registrations
+- MCP forward targets
+- impact-view projections
 
-Python
-  - discovery and curation workflows
-  - external agent interoperability
-  - tooling ecosystems not worth rewriting in Rust
-```
+The bundle should be loadable without recompiling the binary.
+
+## Decision Support Surface
+
+The system should ultimately help answer questions like:
+
+- What else changes if this schema field changes?
+- Which documents and processes depend on this concept, even if they use different words?
+- Where do two teams mean different things by the same term?
+- Which decisions rely on informal or weakly evidenced assumptions?
+- Which systems are coupled only through undocumented process or data dependencies?
+
+That is the actual downstream value of the runtime.
 
 ## Design Principles
 
-1. Rust traits remain the stable host contract.
-2. Ontology extensions are data plus constrained script, not ad hoc binary patches.
-3. Validation happens before behavior execution.
-4. Every runtime extension must be auditable and replayable.
-5. Python remains useful, but only across an executor boundary.
-6. Git snapshots the semantic state; Neumann serves the live state.
-7. MCP exposes discoverability so agents learn the ontology instead of guessing it.
-
-## Roadmap After The Pivot
-
-### 1. Config-driven `phase2d`
-
-Replace the hardcoded daemon bootstrap with a runtime config model for:
-
-- providers
-- store backends
-- watch roots
-- MCP forwarding targets
-- ontology registries
-- Rhai module locations
-- Python executor registrations
-
-### 2. Ontology Extension Runtime
-
-Add a first-class extension layer:
-
-- schema bundle format
-- Rhai module loader
-- host adapter for validated object hooks
-- execution limits and audit traces
-
-### 3. Python Executor Boundary
-
-Formalize Python as a logical executor:
-
-- MCP-forwardable Python workers
-- discovery workflows that emit ontology candidates
-- curation workflows that refine Rhai-facing schemas
-- no direct promotion of Python objects into host runtime contracts
-
-### 4. Discovery Surface
-
-Expose runtime extension state over MCP:
-
-- available ontologies
-- available schemas
-- registered Rhai modules
-- Python executor catalog
-- validation status
-- version / snapshot provenance
+1. Preserve provenance. Never lose the trail back to the source artifact.
+2. Model ambiguity explicitly. Do not force early false precision.
+3. Separate evidence from interpretation.
+4. Keep the Rust host contract stable.
+5. Use Rhai for embedded semantic behavior, not host contract mutation.
+6. Keep Python at an executor boundary for interop and discovery.
+7. Keep Git as the immutable semantic ledger and Neumann as the live semantic store.
+8. Expose ontology and impact discovery through MCP so agents learn instead of guessing.
 
 ## Non-goals
 
-This pivot is not aiming to:
+This runtime is not trying to:
 
-- make Python the embedded object runtime
-- dynamically generate Rust traits
-- allow unrestricted scripting inside the daemon
-- replace Git as the immutable ledger
-- replace Neumann as the live semantic store
+- reduce the enterprise ontology to code structure alone
+- assume every source can be made semantically precise immediately
+- make Python the in-process ontology runtime
+- let scripts bypass host validation
+- replace human curation where ambiguity is real
 
 ## Status
 
-This branch captures the architecture pivot in documentation first.
+This branch captures the documentation pivot first.
 
-The codebase already supports the current Phase 2 runtime skeleton. The next implementation phase is to align configuration and ontology extension loading with this model.
+The implementation already has a working Phase 2 runtime skeleton. The next real work is to widen that skeleton from "repo/code intelligence" into "enterprise artifact ingestion and latent ontology discovery".
