@@ -185,11 +185,13 @@ impl KnowledgeStore for NeumannStore {
     async fn upsert_edges(&self, edges: Vec<EdgeRecord>) -> Result<()> {
         let mut stored = self.edges.write().expect("edges");
         for edge in edges {
-            if !stored.iter().any(|candidate| {
+            if let Some(existing) = stored.iter_mut().find(|candidate| {
                 candidate.from == edge.from
                     && candidate.to == edge.to
                     && candidate.kind == edge.kind
             }) {
+                existing.weight = edge.weight;
+            } else {
                 stored.push(edge);
             }
         }
