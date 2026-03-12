@@ -236,7 +236,7 @@ fn rpc_request(request: &ForwardRequest) -> Value {
         "id": "forward-1",
         "method": "tools/call",
         "params": {
-            "name": "agent.forward_mcp",
+            "name": "agent.execute_delegated_task",
             "arguments": request,
         }
     })
