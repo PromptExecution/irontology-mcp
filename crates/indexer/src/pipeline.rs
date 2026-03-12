@@ -116,7 +116,8 @@ pub async fn index_intake_file(
             blob: blob_id.clone(),
             path: intake.path.clone(),
             media_type: intake.media_type.clone(),
-            size: std::fs::metadata(path)
+            size: tokio::fs::metadata(path)
+                .await
                 .map(|meta| meta.len())
                 .unwrap_or_default(),
             commit: blob_id.clone(),
