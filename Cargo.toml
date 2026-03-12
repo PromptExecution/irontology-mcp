@@ -20,6 +20,7 @@ members = [
   "crates/storage-neumann",
   "crates/mcp-server",
   "crates/cli",
+  "crates/semantic-runtime",
 ]
 
 [workspace.package]

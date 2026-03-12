@@ -6,11 +6,15 @@ use std::{
 
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
+use domain::SourceSystemKind;
+use intake::{load_directory_sources, DirectorySource, DIRECTORY_CONFIG_FILE};
 use tokio::task::JoinHandle;
 use watchexec::{error::CriticalError, Watchexec};
 use watchexec_signals::Signal;
 
-use crate::{index_file, GitLedger, Handler, ModelProvider, RuleMatcher};
+use crate::{
+    index_file, index_intake_file, GitLedger, Handler, IntakeFile, ModelProvider, RuleMatcher,
+};
 use storage_neumann::KnowledgeStore;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -36,6 +40,7 @@ pub trait ChangeProcessor: Send + Sync {
 }
 
 pub struct IndexingChangeProcessor {
+    roots: Vec<PathBuf>,
     git_ledger: Arc<dyn GitLedger>,
     rules: Arc<dyn RuleMatcher>,
     handler: Arc<dyn Handler>,
@@ -45,6 +50,7 @@ pub struct IndexingChangeProcessor {
 
 impl IndexingChangeProcessor {
     pub fn new(
+        roots: Vec<String>,
         git_ledger: Arc<dyn GitLedger>,
         rules: Arc<dyn RuleMatcher>,
         handler: Arc<dyn Handler>,
@@ -52,6 +58,7 @@ impl IndexingChangeProcessor {
         provider: Arc<dyn ModelProvider>,
     ) -> Self {
         Self {
+            roots: roots.into_iter().map(PathBuf::from).collect(),
             git_ledger,
             rules,
             handler,
@@ -64,6 +71,46 @@ impl IndexingChangeProcessor {
 #[async_trait]
 impl ChangeProcessor for IndexingChangeProcessor {
     async fn process_path(&self, path: &Path) -> Result<bool> {
+        if path.file_name().and_then(|value| value.to_str()) == Some(DIRECTORY_CONFIG_FILE) {
+            return Ok(false);
+        }
+
+        if let Some(source) = self.resolve_source(path)? {
+            let staged = source.stage_artifact(path)?;
+            let mut tags = staged.artifact.tags.clone();
+            tags.insert(
+                "source_rel_path".to_string(),
+                staged.relative_path.display().to_string(),
+            );
+            let intake = IntakeFile {
+                path: staged.absolute_path.display().to_string(),
+                extension: staged
+                    .absolute_path
+                    .extension()
+                    .and_then(|value| value.to_str())
+                    .map(|value| format!(".{value}"))
+                    .unwrap_or_default(),
+                media_type: staged.artifact.media_type.clone().unwrap_or_default(),
+                fields: vec![],
+                class: None,
+                shape: None,
+                source_id: Some(staged.source.source.id.clone()),
+                source_kind: Some(source_kind_label(&staged.source.source.kind)),
+                tags,
+                ontology_refs: staged.source.ontology_refs.clone(),
+            };
+            return index_intake_file(
+                path,
+                intake,
+                self.git_ledger.as_ref(),
+                self.rules.as_ref(),
+                self.handler.as_ref(),
+                self.store.as_ref(),
+                self.provider.as_ref(),
+            )
+            .await;
+        }
+
         index_file(
             path,
             self.git_ledger.as_ref(),
@@ -73,6 +120,29 @@ impl ChangeProcessor for IndexingChangeProcessor {
             self.provider.as_ref(),
         )
         .await
+    }
+}
+
+impl IndexingChangeProcessor {
+    fn resolve_source(&self, path: &Path) -> Result<Option<DirectorySource>> {
+        let absolute = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+        let mut matches = load_directory_sources(self.roots.iter())?
+            .into_iter()
+            .filter(|source| source.contains_path(&absolute))
+            .collect::<Vec<_>>();
+        matches.sort_by_key(|source| std::cmp::Reverse(source.root_dir.components().count()));
+        Ok(matches.into_iter().next())
+    }
+}
+
+fn source_kind_label(kind: &SourceSystemKind) -> String {
+    match kind {
+        SourceSystemKind::GitRepository => "git_repository".to_string(),
+        SourceSystemKind::SharePoint => "sharepoint".to_string(),
+        SourceSystemKind::DatabaseSchema => "database_schema".to_string(),
+        SourceSystemKind::DocumentSilo => "document_silo".to_string(),
+        SourceSystemKind::ProcessCatalog => "process_catalog".to_string(),
+        SourceSystemKind::Other(value) => value.clone(),
     }
 }
 

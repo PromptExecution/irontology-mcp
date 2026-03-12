@@ -398,9 +398,11 @@ impl McpServerRuntime {
             config.executor,
         );
         let watcher = if let Some(watch) = config.watch {
+            let watch_roots = watch.config.roots.clone();
             Some(spawn_watchexec(
                 watch.config,
                 Arc::new(IndexingChangeProcessor::new(
+                    watch_roots,
                     watch.git_ledger,
                     watch.rules,
                     watch.handler,

@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{collections::BTreeMap, path::Path};
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -16,6 +16,10 @@ pub struct IntakeFile {
     pub fields: Vec<String>,
     pub class: Option<String>,
     pub shape: Option<String>,
+    pub source_id: Option<String>,
+    pub source_kind: Option<String>,
+    pub tags: BTreeMap<String, String>,
+    pub ontology_refs: Vec<String>,
 }
 
 impl IntakeFile {
@@ -33,6 +37,10 @@ impl IntakeFile {
             fields: vec![],
             class: None,
             shape: None,
+            source_id: None,
+            source_kind: None,
+            tags: BTreeMap::new(),
+            ontology_refs: Vec::new(),
         }
     }
 }
@@ -65,12 +73,32 @@ pub async fn index_file(
     store: &dyn KnowledgeStore,
     provider: &dyn ModelProvider,
 ) -> Result<bool> {
+    index_intake_file(
+        path,
+        IntakeFile::from_path(path),
+        git_ledger,
+        rules,
+        handler,
+        store,
+        provider,
+    )
+    .await
+}
+
+pub async fn index_intake_file(
+    path: &Path,
+    intake: IntakeFile,
+    git_ledger: &dyn GitLedger,
+    rules: &dyn RuleMatcher,
+    handler: &dyn Handler,
+    store: &dyn KnowledgeStore,
+    provider: &dyn ModelProvider,
+) -> Result<bool> {
     let blob_id = git_ledger.blob_id(path).await?;
     if store.has_blob(&blob_id).await? {
         return Ok(false);
     }
 
-    let intake = IntakeFile::from_path(path);
     if !rules.match_file(&intake) {
         return Ok(false);
     }
@@ -123,6 +151,34 @@ pub async fn index_file(
             subject: file_id.clone(),
             predicate: "shape".to_string(),
             object: json!(shape),
+        });
+    }
+    if let Some(source_id) = &intake.source_id {
+        facts.push(FactRecord {
+            subject: file_id.clone(),
+            predicate: "source_id".to_string(),
+            object: json!(source_id),
+        });
+    }
+    if let Some(source_kind) = &intake.source_kind {
+        facts.push(FactRecord {
+            subject: file_id.clone(),
+            predicate: "source_kind".to_string(),
+            object: json!(source_kind),
+        });
+    }
+    for (key, value) in &intake.tags {
+        facts.push(FactRecord {
+            subject: file_id.clone(),
+            predicate: format!("tag:{key}"),
+            object: json!(value),
+        });
+    }
+    for ontology_ref in &intake.ontology_refs {
+        facts.push(FactRecord {
+            subject: file_id.clone(),
+            predicate: "ontology_ref".to_string(),
+            object: json!(ontology_ref),
         });
     }
     store.upsert_facts(facts).await?;
