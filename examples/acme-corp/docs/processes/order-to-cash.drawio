@@ -1,0 +1,6 @@
+<diagram>
+  <step id="reconcile-standing-data">Reconcile standing data</step>
+  <step id="publish-profile">Publish customer profile</step>
+  <step id="retry-payment">Retry failed payment</step>
+  <dependency from="reconcile-standing-data" to="retry-payment" />
+</diagram>

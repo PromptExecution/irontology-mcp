@@ -1,0 +1,4 @@
+Acme steering committee notes
+
+The committee agreed that payment retries fail when standing data changes are not propagated to the retry queue in time.
+Operations described the same issue as a release sequencing problem.

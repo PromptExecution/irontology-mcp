@@ -364,6 +364,7 @@ crates/
   provider-openai/
   provider-test/
   retrieval/
+  semantic-runtime/
   storage-neumann/
   tomllm/
 ```
@@ -374,14 +375,19 @@ Today the implemented path is still biased toward local repo and code/document i
 
 Already present:
 
-- `mcp-server` with stdio and HTTP JSON-RPC transport
-- `phase2d` daemon entrypoint in `crates/cli`
-- `forward-mcp` transport for stdio and HTTP delegation
-- `provider-local` for managed local OpenAI-compatible serving
-- `indexer` watcher runtime with `watchexec`
-- `storage-neumann` as the live semantic store
-- ontology resources ingested at startup
-- DSL foundations for rule-driven ingestion
+- [x] `mcp-server` with stdio and HTTP JSON-RPC transport
+- [x] `phase2d` daemon entrypoint in `crates/cli`
+- [x] `forward-mcp` transport for stdio and HTTP delegation
+- [x] `provider-local` for managed local OpenAI-compatible serving
+- [x] `indexer` watcher runtime with `watchexec`
+- [x] `storage-neumann` as the live semantic store
+- [x] ontology resources ingested at startup
+- [x] DSL foundations for rule-driven ingestion
+- [x] enterprise semantic domain objects such as `Artifact`, `Observation`, `Claim`, `Concept`, `Entity`, `Relation`, `ContextNamespace`, and `EvidenceBundle`
+- [x] Rhai-based semantic correlation runtime over evidence bundles
+- [x] directory-scoped staging source configs via `.promptexecution.toml`
+- [x] staged artifact ingestion with inherited source tags and ontology references
+- [x] watcher/indexer bridging that persists source metadata into the semantic store
 
 Current startup examples:
 

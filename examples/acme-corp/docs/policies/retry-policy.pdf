@@ -1,0 +1,4 @@
+Acme payment retry policy
+
+If a retry is attempted after standing data changes, the retry queue must use the reconciled customer profile version.
+Hidden dependency: operations and billing both own parts of the standing data process.

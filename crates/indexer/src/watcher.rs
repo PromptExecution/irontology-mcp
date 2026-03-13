@@ -2,13 +2,14 @@ use std::{
     collections::BTreeSet,
     path::{Path, PathBuf},
     sync::Arc,
+    time::Duration,
 };
 
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use domain::SourceSystemKind;
 use intake::{load_directory_sources, DirectorySource, DIRECTORY_CONFIG_FILE};
-use tokio::task::JoinHandle;
+use tokio::{task::JoinHandle, time::sleep};
 use watchexec::{error::CriticalError, Watchexec};
 use watchexec_signals::Signal;
 
@@ -161,6 +162,27 @@ impl WatchexecRuntime {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PollConfig {
+    pub roots: Vec<String>,
+    pub interval_seconds: u64,
+}
+
+pub struct PollingRuntime {
+    task: JoinHandle<Result<()>>,
+}
+
+impl PollingRuntime {
+    pub async fn stop(self) -> Result<()> {
+        self.task.abort();
+        match self.task.await {
+            Ok(result) => result,
+            Err(error) if error.is_cancelled() => Ok(()),
+            Err(error) => Err(anyhow!("polling task failed: {error}")),
+        }
+    }
+}
+
 pub async fn reindex_changed_paths(
     events: impl IntoIterator<Item = WatchEvent>,
     processor: &dyn ChangeProcessor,
@@ -188,6 +210,15 @@ pub async fn run_watchexec(config: WatchConfig, processor: Arc<dyn ChangeProcess
     await_watchexec(watcher.main()).await
 }
 
+pub async fn run_poll_loop(config: PollConfig, processor: Arc<dyn ChangeProcessor>) -> Result<()> {
+    let interval = Duration::from_secs(config.interval_seconds.max(1));
+    loop {
+        let events = scan_poll_events(&config.roots)?;
+        let _ = reindex_changed_paths(events, processor.as_ref()).await?;
+        sleep(interval).await;
+    }
+}
+
 pub fn spawn_watchexec(
     config: WatchConfig,
     processor: Arc<dyn ChangeProcessor>,
@@ -196,6 +227,14 @@ pub fn spawn_watchexec(
     let runtime = watcher.clone();
     let task = tokio::spawn(async move { await_watchexec(runtime.main()).await });
     Ok(WatchexecRuntime { task })
+}
+
+pub fn spawn_poller(
+    config: PollConfig,
+    processor: Arc<dyn ChangeProcessor>,
+) -> Result<PollingRuntime> {
+    let task = tokio::spawn(async move { run_poll_loop(config, processor).await });
+    Ok(PollingRuntime { task })
 }
 
 fn build_watchexec(
@@ -237,6 +276,34 @@ async fn await_watchexec(main: JoinHandle<Result<(), CriticalError>>) -> Result<
     }
 }
 
+fn scan_poll_events(roots: &[String]) -> Result<Vec<WatchEvent>> {
+    let mut events = Vec::new();
+    for root in roots {
+        let root = PathBuf::from(root);
+        if !root.exists() {
+            continue;
+        }
+        collect_poll_events(&root, &mut events)?;
+    }
+    Ok(events)
+}
+
+fn collect_poll_events(root: &Path, events: &mut Vec<WatchEvent>) -> Result<()> {
+    for entry in std::fs::read_dir(root)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_dir() {
+            collect_poll_events(&path, events)?;
+            continue;
+        }
+        if path.file_name().and_then(|value| value.to_str()) == Some(DIRECTORY_CONFIG_FILE) {
+            continue;
+        }
+        events.push(WatchEvent { path });
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use std::{
@@ -250,7 +317,8 @@ mod tests {
     use tokio::sync::Notify;
 
     use crate::watcher::{
-        reindex_changed_paths, spawn_watchexec, ChangeProcessor, WatchConfig, WatchEvent,
+        reindex_changed_paths, scan_poll_events, spawn_watchexec, ChangeProcessor, PollConfig,
+        WatchConfig, WatchEvent, DIRECTORY_CONFIG_FILE,
     };
 
     struct ProbeProcessor {
@@ -341,5 +409,38 @@ mod tests {
         .expect("observe file change");
 
         runtime.stop().await.expect("stop watcher");
+    }
+
+    #[test]
+    fn poll_scan_discovers_files_under_roots() {
+        let root = tempdir().expect("tempdir");
+        std::fs::write(root.path().join("alpha.md"), "alpha").expect("write file");
+        std::fs::create_dir(root.path().join("nested")).expect("mkdir");
+        std::fs::write(root.path().join("nested/beta.md"), "beta").expect("write nested file");
+        std::fs::write(
+            root.path().join(DIRECTORY_CONFIG_FILE),
+            "[source]\nid='x'\nkind='documents'\n",
+        )
+        .expect("write config");
+
+        let events = scan_poll_events(&[root.path().display().to_string()]).expect("scan events");
+        let mut seen = events
+            .into_iter()
+            .map(|event| {
+                event
+                    .path
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .to_string()
+            })
+            .collect::<Vec<_>>();
+        seen.sort();
+
+        assert_eq!(seen, vec!["alpha.md".to_string(), "beta.md".to_string()]);
+        let _ = PollConfig {
+            roots: vec![root.path().display().to_string()],
+            interval_seconds: 5,
+        };
     }
 }
