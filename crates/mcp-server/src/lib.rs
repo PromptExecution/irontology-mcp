@@ -6,8 +6,8 @@ use async_trait::async_trait;
 use axum::{extract::State, routing::post, Json, Router};
 use forward_mcp::{DisabledForwarder, McpForwarder, TransportForwarder};
 use indexer::{
-    spawn_watchexec, GitLedger, Handler as IndexHandler, IndexingChangeProcessor, ModelProvider,
-    RuleMatcher, WatchConfig, WatchexecRuntime,
+    spawn_poller, spawn_watchexec, GitLedger, Handler as IndexHandler, IndexingChangeProcessor,
+    ModelProvider, PollConfig, PollingRuntime, RuleMatcher, WatchConfig, WatchexecRuntime,
 };
 use orchestrator::{AgentExecutor, DisabledExecutor};
 use serde::{Deserialize, Serialize};
@@ -184,10 +184,19 @@ pub struct McpServerRuntime {
     pub resources: ResourceRegistry,
     pub store: Arc<dyn KnowledgeStore>,
     watcher: Option<WatchexecRuntime>,
+    pollers: Vec<PollingRuntime>,
 }
 
 pub struct WatchRuntimeConfig {
     pub config: WatchConfig,
+    pub git_ledger: Arc<dyn GitLedger>,
+    pub rules: Arc<dyn RuleMatcher>,
+    pub handler: Arc<dyn IndexHandler>,
+    pub provider: Arc<dyn ModelProvider>,
+}
+
+pub struct PollRuntimeConfig {
+    pub config: PollConfig,
     pub git_ledger: Arc<dyn GitLedger>,
     pub rules: Arc<dyn RuleMatcher>,
     pub handler: Arc<dyn IndexHandler>,
@@ -199,6 +208,7 @@ pub struct Phase2RuntimeConfig {
     pub forwarder: Arc<dyn McpForwarder>,
     pub executor: Arc<dyn AgentExecutor>,
     pub watch: Option<WatchRuntimeConfig>,
+    pub polls: Vec<PollRuntimeConfig>,
 }
 
 impl Phase2RuntimeConfig {
@@ -208,6 +218,7 @@ impl Phase2RuntimeConfig {
             forwarder: Arc::new(DisabledForwarder),
             executor: Arc::new(DisabledExecutor),
             watch: None,
+            polls: Vec::new(),
         }
     }
 
@@ -228,6 +239,11 @@ impl Phase2RuntimeConfig {
 
     pub fn with_watch(mut self, watch: WatchRuntimeConfig) -> Self {
         self.watch = Some(watch);
+        self
+    }
+
+    pub fn with_poll(mut self, poll: PollRuntimeConfig) -> Self {
+        self.polls.push(poll);
         self
     }
 }
@@ -261,6 +277,9 @@ impl McpServerRuntime {
     pub async fn shutdown(self) -> Result<()> {
         if let Some(watcher) = self.watcher {
             watcher.stop().await?;
+        }
+        for poller in self.pollers {
+            poller.stop().await?;
         }
         Ok(())
     }
@@ -413,12 +432,28 @@ impl McpServerRuntime {
         } else {
             None
         };
+        let mut pollers = Vec::new();
+        for poll in config.polls {
+            let poll_roots = poll.config.roots.clone();
+            pollers.push(spawn_poller(
+                poll.config,
+                Arc::new(IndexingChangeProcessor::new(
+                    poll_roots,
+                    poll.git_ledger,
+                    poll.rules,
+                    poll.handler,
+                    store.clone(),
+                    poll.provider,
+                )),
+            )?);
+        }
 
         Ok(Self {
             tools,
             resources,
             store,
             watcher,
+            pollers,
         })
     }
 

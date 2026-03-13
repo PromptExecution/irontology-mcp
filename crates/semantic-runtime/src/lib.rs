@@ -83,6 +83,15 @@ impl SemanticRuntime {
 
         Ok(outcome)
     }
+
+    pub fn validate(&self, rules: &[CorrelationRule]) -> Result<()> {
+        for rule in rules {
+            self.engine
+                .compile(&rule.script)
+                .map_err(|error| anyhow!("compile correlation rule {}: {error}", rule.name))?;
+        }
+        Ok(())
+    }
 }
 
 fn concept_count(ctx: &mut HookContext, label: &str) -> i64 {
@@ -309,5 +318,17 @@ mod tests {
         assert_eq!(outcome.claims.len(), 1);
         assert_eq!(outcome.claims[0].predicate, "impact:may_affect");
         assert_eq!(outcome.claims[0].evidence, vec!["obs:1"]);
+    }
+
+    #[test]
+    fn validates_rhai_rules_before_runtime_execution() {
+        let runtime = SemanticRuntime::new();
+        runtime
+            .validate(&[CorrelationRule {
+                name: "valid_rule".to_string(),
+                script: r#"if concept_count(ctx, "standing data") > 0 { emit_note(ctx, "ok"); }"#
+                    .to_string(),
+            }])
+            .expect("validate");
     }
 }

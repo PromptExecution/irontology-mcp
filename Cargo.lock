@@ -246,13 +246,22 @@ dependencies = [
  "async-trait",
  "axum",
  "blake3",
+ "domain",
  "indexer",
+ "intake",
  "mcp-server",
+ "provider-api",
+ "provider-local",
+ "provider-openai",
  "provider-test",
  "retrieval",
+ "semantic-runtime",
+ "serde",
  "serde_json",
  "storage-neumann",
+ "tempfile",
  "tokio",
+ "toml",
 ]
 
 [[package]]

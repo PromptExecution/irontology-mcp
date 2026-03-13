@@ -14,6 +14,7 @@ pub use storage_neumann::{
     KnowledgeStore, SemanticQuery, StoreHealth,
 };
 pub use watcher::{
-    reindex_changed_paths, run_watchexec, spawn_watchexec, ChangeProcessor,
-    IndexingChangeProcessor, WatchConfig, WatchEvent, WatchSummary, WatchexecRuntime,
+    reindex_changed_paths, run_poll_loop, run_watchexec, spawn_poller, spawn_watchexec,
+    ChangeProcessor, IndexingChangeProcessor, PollConfig, PollingRuntime, WatchConfig, WatchEvent,
+    WatchSummary, WatchexecRuntime,
 };
