@@ -288,11 +288,32 @@ fn scan_poll_events(roots: &[String]) -> Result<Vec<WatchEvent>> {
     Ok(events)
 }
 
+fn is_ignored_dir_name(name: &str) -> bool {
+    matches!(
+        name,
+        ".git"
+            | ".hg"
+            | ".svn"
+            | ".idea"
+            | ".vscode"
+            | "node_modules"
+            | "target"
+            | "dist"
+            | "build"
+    )
+}
+
 fn collect_poll_events(root: &Path, events: &mut Vec<WatchEvent>) -> Result<()> {
     for entry in std::fs::read_dir(root)? {
         let entry = entry?;
         let path = entry.path();
         if path.is_dir() {
+            // Skip common VCS and build directories to avoid indexing internal artifacts.
+            if let Some(name) = path.file_name().and_then(|value| value.to_str()) {
+                if is_ignored_dir_name(name) {
+                    continue;
+                }
+            }
             collect_poll_events(&path, events)?;
             continue;
         }
