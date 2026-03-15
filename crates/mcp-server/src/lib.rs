@@ -275,13 +275,29 @@ pub struct JsonRpcError {
 
 impl McpServerRuntime {
     pub async fn shutdown(self) -> Result<()> {
+        let mut first_err: Option<anyhow::Error> = None;
+
         if let Some(watcher) = self.watcher {
-            watcher.stop().await?;
+            if let Err(e) = watcher.stop().await {
+                if first_err.is_none() {
+                    first_err = Some(e);
+                }
+            }
         }
+
         for poller in self.pollers {
-            poller.stop().await?;
+            if let Err(e) = poller.stop().await {
+                if first_err.is_none() {
+                    first_err = Some(e);
+                }
+            }
         }
-        Ok(())
+
+        if let Some(e) = first_err {
+            Err(e)
+        } else {
+            Ok(())
+        }
     }
 
     pub fn router(runtime: Arc<Self>) -> Router {
