@@ -9,7 +9,7 @@ use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use domain::SourceSystemKind;
 use intake::{load_directory_sources, DirectorySource, DIRECTORY_CONFIG_FILE};
-use tokio::{task::JoinHandle, time::sleep};
+use tokio::{task::{block_in_place, JoinHandle}, time::sleep};
 use watchexec::{error::CriticalError, Watchexec};
 use watchexec_signals::Signal;
 
@@ -294,15 +294,17 @@ async fn await_watchexec(main: JoinHandle<Result<(), CriticalError>>) -> Result<
 }
 
 fn scan_poll_events(roots: &[String]) -> Result<Vec<WatchEvent>> {
-    let mut events = Vec::new();
-    for root in roots {
-        let root = PathBuf::from(root);
-        if !root.exists() {
-            continue;
+    block_in_place(|| {
+        let mut events = Vec::new();
+        for root in roots {
+            let root = PathBuf::from(root);
+            if !root.exists() {
+                continue;
+            }
+            collect_poll_events(&root, &mut events)?;
         }
-        collect_poll_events(&root, &mut events)?;
-    }
-    Ok(events)
+        Ok(events)
+    })
 }
 
 fn is_ignored_dir_name(name: &str) -> bool {
