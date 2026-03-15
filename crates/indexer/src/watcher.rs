@@ -213,8 +213,25 @@ pub async fn run_watchexec(config: WatchConfig, processor: Arc<dyn ChangeProcess
 pub async fn run_poll_loop(config: PollConfig, processor: Arc<dyn ChangeProcessor>) -> Result<()> {
     let interval = Duration::from_secs(config.interval_seconds.max(1));
     loop {
-        let events = scan_poll_events(&config.roots)?;
-        let _ = reindex_changed_paths(events, processor.as_ref()).await?;
+        let events = match scan_poll_events(&config.roots) {
+            Ok(events) => events,
+            Err(err) => {
+                eprintln!("polling: failed to scan events: {err}");
+                sleep(interval).await;
+                continue;
+            }
+        };
+
+        match reindex_changed_paths(events, processor.as_ref()).await {
+            Ok(_summary) => {
+                // Successful iteration; nothing else to do here.
+            }
+            Err(err) => {
+                eprintln!("polling: failed to reindex changed paths: {err}");
+                // Fall through to sleep before next iteration.
+            }
+        }
+
         sleep(interval).await;
     }
 }
