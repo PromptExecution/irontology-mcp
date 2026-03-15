@@ -114,9 +114,10 @@ pub enum ProviderSettings {
         base_url: Option<String>,
         api_key: Option<String>,
         managed_program: Option<String>,
-        managed_host: String,
+        managed_host: Option<String>,
         managed_port: Option<u16>,
         managed_model: Option<String>,
+        #[serde(default)]
         extra_args: Vec<String>,
     },
 }
