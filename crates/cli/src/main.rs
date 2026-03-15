@@ -4,7 +4,7 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     env, fs,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, LazyLock},
 };
 
 use anyhow::{anyhow, Result};
@@ -389,6 +389,8 @@ impl ConfiguredFileContentHandler {
 }
 
 #[async_trait]
+static SEMANTIC_RUNTIME: LazyLock<SemanticRuntime> = LazyLock::new(SemanticRuntime::new);
+
 impl Handler for ConfiguredFileContentHandler {
     async fn extract(&self, file: &IntakeFile) -> Result<Extraction> {
         let path = Path::new(&file.path);
@@ -420,8 +422,7 @@ impl Handler for ConfiguredFileContentHandler {
                     .collect::<Vec<_>>();
                 if !rules.is_empty() {
                     let staged = source.stage_artifact(path)?;
-                    let semantic_runtime = SemanticRuntime::new();
-                    let _ = semantic_runtime
+                    let _ = SEMANTIC_RUNTIME
                         .correlate(&synthetic_bundle(staged.artifact, &text), &rules)?;
                 }
             }
