@@ -13,7 +13,10 @@ pub struct RuleMatcher;
 
 impl RuleMatcher {
     pub fn matches(rule: &Rule, file: &InputFile<'_>) -> bool {
-        rule.when_clause.conditions.iter().all(|condition| eval(condition, file))
+        rule.when_clause
+            .conditions
+            .iter()
+            .all(|condition| eval(condition, file))
     }
 }
 

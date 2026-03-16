@@ -6,9 +6,17 @@ edition.workspace = true
 [dependencies]
 anyhow.workspace = true
 async-trait.workspace = true
+domain = { path = "../domain" }
 dsl = { path = "../dsl" }
+intake = { path = "../intake" }
+provider-api = { path = "../provider-api" }
 serde.workspace = true
+serde_json.workspace = true
+storage-neumann = { path = "../storage-neumann" }
 tokio.workspace = true
+watchexec = "8.2"
+watchexec-signals = "5"
 
 [dev-dependencies]
-tokio = { version = "1", features = ["macros", "rt"] }
+tempfile = "3"
+tokio = { version = "1", features = ["fs", "macros", "rt-multi-thread", "time"] }

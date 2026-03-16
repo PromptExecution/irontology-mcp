@@ -6,10 +6,19 @@ edition.workspace = true
 [dependencies]
 anyhow.workspace = true
 async-trait.workspace = true
+axum = "0.7"
+forward-mcp = { path = "../forward-mcp" }
+indexer = { path = "../indexer" }
+orchestrator = { path = "../orchestrator" }
 serde.workspace = true
 serde_json.workspace = true
 retrieval = { path = "../retrieval" }
 storage-neumann = { path = "../storage-neumann" }
+tokio = { workspace = true, features = ["io-util"] }
 
 [dev-dependencies]
-tokio = { version = "1", features = ["macros", "rt"] }
+provider-test = { path = "../provider-test" }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+tempfile = "3"
+tokio = { version = "1", features = ["fs", "macros", "rt-multi-thread", "time"] }
+uuid = { version = "1", features = ["v4"] }

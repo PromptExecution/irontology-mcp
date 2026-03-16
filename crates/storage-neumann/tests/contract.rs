@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
+use serde_json::json;
 use storage_neumann::{
-    config::NeumannConfig, EmbeddingRecord, KnowledgeStore, NeumannStore, SemanticQuery,
+    config::NeumannConfig, EmbeddingModality, EmbeddingRecord, FactRecord, FileRecord,
+    KnowledgeStore, NeumannStore, SemanticQuery,
 };
 
 #[tokio::test]
@@ -9,16 +11,39 @@ async fn neumann_store_contract_basics() {
     let store = NeumannStore::new(NeumannConfig::default());
 
     store
+        .upsert_file(FileRecord {
+            id: "file:git:blob:blob-1".to_string(),
+            blob: "blob-1".to_string(),
+            path: "src/lib.rs".to_string(),
+            media_type: "text/plain".to_string(),
+            size: 42,
+            commit: "commit-1".to_string(),
+        })
+        .await
+        .expect("upsert file");
+    store
+        .upsert_facts(vec![FactRecord {
+            subject: "file:git:blob:blob-1".to_string(),
+            predicate: "media_type".to_string(),
+            object: json!("text/plain"),
+        }])
+        .await
+        .expect("upsert facts");
+    store
         .upsert_embeddings(vec![
             EmbeddingRecord {
                 id: "sym:a".to_string(),
                 source_blob: "blob-1".to_string(),
                 vector: Arc::from([1.0_f32, 0.0_f32]),
+                modality: EmbeddingModality::CodeSymbol,
+                semantic_weight: 1.0,
             },
             EmbeddingRecord {
                 id: "sym:b".to_string(),
                 source_blob: "blob-2".to_string(),
                 vector: Arc::from([0.0_f32, 1.0_f32]),
+                modality: EmbeddingModality::DocChunk,
+                semantic_weight: 1.0,
             },
         ])
         .await
@@ -26,10 +51,29 @@ async fn neumann_store_contract_basics() {
 
     assert!(store.has_blob("blob-1").await.expect("has_blob"));
 
+    let files = store
+        .query(SemanticQuery::Files {
+            path: Some("src/lib.rs".to_string()),
+            blob: None,
+        })
+        .await
+        .expect("file query");
+    assert_eq!(files.files.len(), 1);
+
+    let facts = store
+        .query(SemanticQuery::Facts {
+            subject: Some("file:git:blob:blob-1".to_string()),
+            predicate: Some("media_type".to_string()),
+        })
+        .await
+        .expect("fact query");
+    assert_eq!(facts.facts.len(), 1);
+
     let result = store
         .query(SemanticQuery::Vector {
             embedding: Arc::from([0.9_f32, 0.1_f32]),
             top_k: 1,
+            modality: Some(EmbeddingModality::CodeSymbol),
         })
         .await
         .expect("query");
@@ -90,7 +134,10 @@ ex:SemanticAnchor a rdfs:Class ;
         )
         .await
         .expect("topic evidence");
-    assert_eq!(evidence, vec!["https://example.org/pe/doc/incident-42".to_string()]);
+    assert_eq!(
+        evidence,
+        vec!["https://example.org/pe/doc/incident-42".to_string()]
+    );
 
     let labels = store
         .related_objects(

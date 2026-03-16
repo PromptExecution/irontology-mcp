@@ -1,0 +1,21 @@
+[package]
+name = "forward-mcp"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde.workspace = true
+serde_json.workspace = true
+shlex = "1"
+tokio = { workspace = true, features = ["io-util", "process", "time"] }
+
+[[bin]]
+name = "mock_forward_stdio"
+path = "src/bin/mock_forward_stdio.rs"
+
+[dev-dependencies]
+axum = "0.7"
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "time"] }

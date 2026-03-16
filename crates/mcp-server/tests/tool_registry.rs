@@ -1,7 +1,10 @@
 use anyhow::Result;
+use forward_mcp::{ForwardResponse, StaticForwarder};
 use mcp_server::ToolRegistry;
+use orchestrator::{AgentRunResponse, StaticExecutor};
 use retrieval::{RankedResult, SearchBackend};
 use serde_json::json;
+use uuid::Uuid;
 
 struct FixedBackend;
 impl SearchBackend for FixedBackend {
@@ -29,6 +32,8 @@ async fn registry_contains_and_invokes_phase2_tools() {
     assert!(registry.has("repo.search"));
     assert!(registry.has("repo.read_symbol"));
     assert!(registry.has("ontology.list_classes"));
+    assert!(registry.has("agent.forward_mcp"));
+    assert!(registry.has("agent.run"));
 
     let search_tool = registry.get("repo.search").expect("search tool");
     let search = search_tool
@@ -42,4 +47,74 @@ async fn registry_contains_and_invokes_phase2_tools() {
         .expect("ontology tool");
     let ontology = ontology_tool.call(json!({})).await.expect("ontology call");
     assert!(ontology["classes"].is_array());
+}
+
+#[tokio::test]
+async fn registry_invokes_forward_mcp_tool_with_allowlist() {
+    let forwarder = StaticForwarder::new(ForwardResponse {
+        target: "stdio://child:other-agent".to_string(),
+        output: json!({ "summary": "delegated" }),
+        trace: vec!["tool:repo.search".to_string()],
+        artifacts: vec!["artifact://run-1".to_string()],
+    });
+    let registry = ToolRegistry::with_phase2_tools_and_forwarder(
+        Box::new(FixedBackend),
+        std::sync::Arc::new(forwarder.clone()),
+    );
+
+    let tool = registry.get("agent.forward_mcp").expect("forward tool");
+    let response = tool
+        .call(json!({
+            "target": "stdio://child:other-agent",
+            "task": "Summarize auth module risks",
+            "allowed_tools": ["repo.search"],
+            "allowed_resources": ["repo://tree"],
+            "allowed_prompts": ["delegate_task"],
+            "context": ["repo://tree"],
+            "budget_tokens": 8000,
+            "timeout_ms": 30000,
+            "return_mode": "final_with_trace",
+            "payload": { "question": "auth risks" }
+        }))
+        .await
+        .expect("forward call");
+
+    assert_eq!(response["output"]["summary"], "delegated");
+    assert_eq!(
+        forwarder.seen_requests()[0].allowed_tools,
+        vec!["repo.search"]
+    );
+    assert_eq!(
+        forwarder.seen_requests()[0].allowed_resources,
+        vec!["repo://tree"]
+    );
+}
+
+#[tokio::test]
+async fn registry_invokes_agent_run_tool() {
+    let executor = StaticExecutor::new(AgentRunResponse {
+        run_id: Uuid::nil(),
+        answer: "bounded answer".to_string(),
+        artifacts: vec!["artifact://run-1".to_string()],
+    });
+    let registry = ToolRegistry::with_phase2_tools_and_executor(
+        Box::new(FixedBackend),
+        std::sync::Arc::new(executor.clone()),
+    );
+
+    let tool = registry.get("agent.run").expect("agent run tool");
+    let response = tool
+        .call(json!({
+            "task": "Summarize auth module risks",
+            "model": "local/code",
+            "max_turns": 6,
+            "budget_tokens": 16000,
+            "context": ["repo://tree"]
+        }))
+        .await
+        .expect("agent run call");
+
+    assert_eq!(response["answer"], "bounded answer");
+    assert_eq!(executor.seen_requests()[0].model, "local/code");
+    assert_eq!(executor.seen_requests()[0].context, vec!["repo://tree"]);
 }
