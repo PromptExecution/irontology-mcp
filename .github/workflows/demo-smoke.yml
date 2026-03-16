@@ -1,0 +1,34 @@
+name: demo-smoke
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  rust-demo-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Verify semantic runtime
+        run: cargo test -p semantic-runtime
+
+      - name: Verify intake
+        run: cargo test -p intake
+
+      - name: Verify indexer metadata bridge
+        run: cargo test -p indexer staged_source_metadata_is_persisted_as_facts
+
+      - name: Verify CLI bootstrap
+        run: cargo test -p cli --bin phase2d
+
+      - name: Verify MCP runtime compiles
+        run: cargo check -p mcp-server
+
+      - name: Verify stdio smoke test
+        run: cargo test -p cli --test stdio

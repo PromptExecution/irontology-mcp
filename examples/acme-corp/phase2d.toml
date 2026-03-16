@@ -1,0 +1,32 @@
+[provider]
+kind = "fixture"
+model_id = "fixture-acme"
+chat_content = "acme fixture response"
+embedding_dim = 8
+
+[forwarding]
+transport_forwarding = true
+
+[neumann]
+endpoint = "http://localhost:7777"
+namespace = "acme-demo"
+
+[[sources]]
+root = "repo"
+rhai_modules = ["latent_dependencies"]
+
+[[sources]]
+root = "docs"
+rhai_modules = ["latent_dependencies"]
+
+[[registries.extractors]]
+name = "text"
+kind = "builtin_text"
+
+[[registries.executors]]
+name = "python_curator"
+target = "stdio://child:python3 executors/python_curator.py"
+
+[[registries.rhai_modules]]
+name = "latent_dependencies"
+path = "rhai/latent_dependencies.rhai"

@@ -364,6 +364,7 @@ crates/
   provider-openai/
   provider-test/
   retrieval/
+  semantic-runtime/
   storage-neumann/
   tomllm/
 ```
@@ -374,21 +375,31 @@ Today the implemented path is still biased toward local repo and code/document i
 
 Already present:
 
-- `mcp-server` with stdio and HTTP JSON-RPC transport
-- `phase2d` daemon entrypoint in `crates/cli`
-- `forward-mcp` transport for stdio and HTTP delegation
-- `provider-local` for managed local OpenAI-compatible serving
-- `indexer` watcher runtime with `watchexec`
-- `storage-neumann` as the live semantic store
-- ontology resources ingested at startup
-- DSL foundations for rule-driven ingestion
+- [x] `mcp-server` with stdio and HTTP JSON-RPC transport
+- [x] `phase2d` daemon entrypoint in `crates/cli`
+- [x] config-driven `phase2d` bootstrap via `phase2d.toml`
+- [x] `forward-mcp` transport for stdio and HTTP delegation
+- [x] `provider-local` for managed local OpenAI-compatible serving
+- [x] `indexer` watcher runtime with `watchexec`
+- [x] `storage-neumann` as the live semantic store
+- [x] ontology resources ingested at startup
+- [x] `agent.run` MCP tool backed by a bounded internal executor
+- [x] DSL foundations for rule-driven ingestion
+- [x] enterprise semantic domain objects such as `Artifact`, `Observation`, `Claim`, `Concept`, `Entity`, `Relation`, `ContextNamespace`, and `EvidenceBundle`
+- [x] Rhai-based semantic correlation runtime over evidence bundles
+- [x] directory-scoped staging source configs via `.promptexecution.toml`
+- [x] staged artifact ingestion with inherited source tags and ontology references
+- [x] watcher/indexer bridging that persists source metadata into the semantic store
+- [x] configured external executor dispatch over the MCP forward boundary
+- [x] semantic enrichment persistence for extracted fields, claims, relations, and notes
+- [x] Acme Corp demo corpus with cross-document fixtures and CI smoke coverage
 
 Current startup examples:
 
 ```bash
-cargo run -p cli --bin phase2d -- stdio
-cargo run -p cli --bin phase2d -- http --addr 127.0.0.1:3000
-cargo run -p cli --bin phase2d -- http --addr 127.0.0.1:3000 --watch .
+cargo run -p cli --bin phase2d -- stdio --config examples/acme-corp/phase2d.toml
+cargo run -p cli --bin phase2d -- http --config examples/acme-corp/phase2d.toml --addr 127.0.0.1:3000
+cargo run -p cli --bin phase2d -- http --config examples/acme-corp/phase2d.toml --watch examples/acme-corp/repo
 ```
 
 ## Where The Design Needs To Broaden
@@ -405,7 +416,7 @@ It is:
 
 ## Next Direction For Configuration
 
-The hardcoded bootstrap in `phase2d` should be replaced by a runtime bundle that can describe:
+The current runtime bundle now describes:
 
 - source connectors
 - extractor registrations
@@ -418,7 +429,20 @@ The hardcoded bootstrap in `phase2d` should be replaced by a runtime bundle that
 - MCP forward targets
 - impact-view projections
 
-The bundle should be loadable without recompiling the binary.
+The next configuration step is broadening that bundle beyond local staged directories into richer connector definitions and impact-view projections without recompiling the binary.
+
+## Demo Continuity
+
+The repo now carries a stable demo spine under `examples/acme-corp/`:
+
+- themed source roots for repo and document ingestion
+- `.promptexecution.toml` staging configs per source root
+- `phase2d.toml` for end-to-end daemon startup
+- a Python curator executor for cross-document classification hints
+- Rhai modules for latent-dependency enrichment
+- a GitHub Actions smoke workflow that exercises the demo as part of CI
+
+This keeps new runtime features anchored to one continuous corpus instead of adding isolated test fixtures with no narrative continuity.
 
 ## Decision Support Surface
 

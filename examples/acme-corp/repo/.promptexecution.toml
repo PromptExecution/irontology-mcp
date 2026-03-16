@@ -1,0 +1,12 @@
+[source]
+id = "git://acme-billing"
+kind = "git"
+
+[metadata]
+tags = { company = "acme", domain = "billing", corpus = "demo" }
+
+[ontologies]
+refs = ["ontology://acme/billing", "ontology://acme/standing-data"]
+
+[adapters]
+extractors = ["text"]

@@ -1,0 +1,17 @@
+[source]
+id = "sharepoint://acme-program-delivery"
+kind = "sharepoint"
+
+[metadata]
+tags = { company = "acme", silo = "sharepoint", corpus = "demo" }
+
+[ontologies]
+refs = ["ontology://acme/program", "ontology://acme/standing-data"]
+
+[poll]
+mode = "interval"
+interval_seconds = 300
+
+[adapters]
+extractors = ["text"]
+executors = ["python_curator"]
