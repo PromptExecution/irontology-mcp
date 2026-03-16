@@ -12,10 +12,10 @@ anyhow.workspace = true
 async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "signal"] }
 rmcp = { version = "0.8", features = ["server", "transport-io"] }
 retrieval = { path = "../retrieval" }
 storage-neumann = { path = "../storage-neumann" }
 
 [dev-dependencies]
-tokio = { version = "1", features = ["macros", "rt"] }
+tokio = { workspace = true, features = ["macros", "rt"] }
