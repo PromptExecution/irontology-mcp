@@ -19,7 +19,7 @@ use tokio::signal::ctrl_c;
 
 use mcp_server::McpServerRuntime;
 use retrieval::DeterministicBackend;
-use storage_neumann::NeumannConfig;
+use storage_neumann::config::NeumannConfig;
 
 pub struct IrontologyMcpServer {
     runtime: McpServerRuntime,
