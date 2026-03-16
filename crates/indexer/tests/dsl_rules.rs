@@ -182,6 +182,12 @@ async fn dsl_rule_match_indexes_rust_file() {
             extraction: Extraction {
                 text: "fn alpha() {}".to_string(),
                 has_symbols: true,
+                fields: Default::default(),
+                class: None,
+                shape: None,
+                claims: vec![],
+                relations: vec![],
+                notes: vec![],
             },
         },
         &StoreProbe {

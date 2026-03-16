@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::Result;
 use async_trait::async_trait;
+use domain::{Claim, Relation};
 use indexer::{
     index_file, index_intake_file, EdgeRecord, EmbedRequest, EmbedResponse, EmbeddingModality,
     EmbeddingRecord, Extraction, FactRecord, FileRecord, GitLedger, Handler, IntakeFile,
@@ -60,6 +61,7 @@ impl Handler for StubHandler {
 struct StoreProbe {
     seen: Arc<Mutex<Vec<EmbeddingRecord>>>,
     facts: Arc<Mutex<Vec<FactRecord>>>,
+    edges: Arc<Mutex<Vec<EdgeRecord>>>,
     existing: bool,
 }
 
@@ -78,7 +80,8 @@ impl KnowledgeStore for StoreProbe {
         Ok(())
     }
 
-    async fn upsert_edges(&self, _edges: Vec<EdgeRecord>) -> Result<()> {
+    async fn upsert_edges(&self, edges: Vec<EdgeRecord>) -> Result<()> {
+        self.edges.lock().expect("lock").extend(edges);
         Ok(())
     }
 
@@ -142,8 +145,21 @@ impl ModelProvider for ProviderProbe {
         })
     }
 
-    fn model_id(&self) -> &str {
-        "probe"
+fn model_id(&self) -> &str {
+    "probe"
+}
+}
+
+fn sample_extraction(text: &str, has_symbols: bool) -> Extraction {
+    Extraction {
+        text: text.to_string(),
+        has_symbols,
+        fields: BTreeMap::new(),
+        class: None,
+        shape: None,
+        claims: vec![],
+        relations: vec![],
+        notes: vec![],
     }
 }
 
@@ -158,6 +174,7 @@ async fn rule_miss_skips_handler_and_provider() {
         &StoreProbe {
             seen: Arc::new(Mutex::new(vec![])),
             facts: Arc::new(Mutex::new(vec![])),
+            edges: Arc::new(Mutex::new(vec![])),
             existing: false,
         },
         &ProviderProbe {
@@ -181,14 +198,12 @@ async fn changed_file_upserts_code_symbol_embeddings() {
         &FakeLedger { blob: "blob-code" },
         &MatchAll,
         &StubHandler {
-            extraction: Extraction {
-                text: "fn alpha() {}".to_string(),
-                has_symbols: true,
-            },
+            extraction: sample_extraction("fn alpha() {}", true),
         },
         &StoreProbe {
             seen: seen.clone(),
             facts: Arc::new(Mutex::new(vec![])),
+            edges: Arc::new(Mutex::new(vec![])),
             existing: false,
         },
         &ProviderProbe {
@@ -212,6 +227,7 @@ async fn changed_file_upserts_code_symbol_embeddings() {
 async fn staged_source_metadata_is_persisted_as_facts() {
     let seen = Arc::new(Mutex::new(Vec::<EmbeddingRecord>::new()));
     let facts = Arc::new(Mutex::new(Vec::<FactRecord>::new()));
+    let edges = Arc::new(Mutex::new(Vec::<EdgeRecord>::new()));
 
     let changed = index_intake_file(
         Path::new("docs/architecture/standing-data.md"),
@@ -238,14 +254,12 @@ async fn staged_source_metadata_is_persisted_as_facts() {
         },
         &MatchAll,
         &StubHandler {
-            extraction: Extraction {
-                text: "standing data glossary".to_string(),
-                has_symbols: false,
-            },
+            extraction: sample_extraction("standing data glossary", false),
         },
         &StoreProbe {
             seen: seen.clone(),
             facts: facts.clone(),
+            edges: edges.clone(),
             existing: false,
         },
         &ProviderProbe {
@@ -271,4 +285,95 @@ async fn staged_source_metadata_is_persisted_as_facts() {
         fact.predicate == "ontology_ref"
             && fact.object == serde_json::json!("ontology://enterprise-arch")
     }));
+    assert!(edges.lock().expect("edges").is_empty());
+}
+
+#[tokio::test]
+async fn semantic_enrichment_is_persisted_as_facts_and_edges() {
+    let facts = Arc::new(Mutex::new(Vec::<FactRecord>::new()));
+    let edges = Arc::new(Mutex::new(Vec::<EdgeRecord>::new()));
+
+    let changed = index_intake_file(
+        Path::new("docs/meeting-notes.md"),
+        IntakeFile {
+            path: "docs/meeting-notes.md".to_string(),
+            extension: ".md".to_string(),
+            media_type: "text/plain".to_string(),
+            fields: vec![],
+            class: None,
+            shape: None,
+            source_id: Some("sharepoint://ops".to_string()),
+            source_kind: Some("sharepoint".to_string()),
+            tags: BTreeMap::new(),
+            ontology_refs: vec![],
+        },
+        &FakeLedger { blob: "blob-semantic" },
+        &MatchAll,
+        &StubHandler {
+            extraction: Extraction {
+                text: "standing data has hidden dependencies".to_string(),
+                has_symbols: false,
+                fields: BTreeMap::from([(
+                    "vendor".to_string(),
+                    serde_json::json!("Acme Finance"),
+                )]),
+                class: Some("doc:MeetingNotes".to_string()),
+                shape: Some("shape:MeetingNotes".to_string()),
+                claims: vec![Claim {
+                    id: "claim:1".to_string(),
+                    subject: "concept:acme:latent-knowledge".to_string(),
+                    predicate: "semantic:may_depend_on".to_string(),
+                    object: "view:acme:cross-document-correlation".to_string(),
+                    evidence: vec!["obs:file".to_string()],
+                    confidence: 0.61,
+                    namespace: Some("ctx:acme".to_string()),
+                }],
+                relations: vec![Relation {
+                    id: "relation:1".to_string(),
+                    subject_id: "concept:standing-data:ops".to_string(),
+                    predicate: "semantic:overlaps_with".to_string(),
+                    object_id: "concept:standing-data:arch".to_string(),
+                    evidence: vec!["obs:file".to_string()],
+                    confidence: 0.72,
+                    namespace: Some("ctx:acme".to_string()),
+                }],
+                notes: vec!["latent dependency hint observed".to_string()],
+            },
+        },
+        &StoreProbe {
+            seen: Arc::new(Mutex::new(vec![])),
+            facts: facts.clone(),
+            edges: edges.clone(),
+            existing: false,
+        },
+        &ProviderProbe {
+            calls: Arc::new(Mutex::new(0_usize)),
+        },
+    )
+    .await
+    .expect("index");
+
+    assert!(changed);
+    let facts = facts.lock().expect("facts");
+    assert!(facts.iter().any(|fact| {
+        fact.predicate == "class" && fact.object == serde_json::json!("doc:MeetingNotes")
+    }));
+    assert!(facts.iter().any(|fact| {
+        fact.predicate == "shape" && fact.object == serde_json::json!("shape:MeetingNotes")
+    }));
+    assert!(facts.iter().any(|fact| {
+        fact.predicate == "field:vendor" && fact.object == serde_json::json!("Acme Finance")
+    }));
+    assert!(facts.iter().any(|fact| {
+        fact.predicate == "semantic_note"
+            && fact.object == serde_json::json!("latent dependency hint observed")
+    }));
+    assert!(facts.iter().any(|fact| {
+        fact.subject == "concept:acme:latent-knowledge"
+            && fact.predicate == "semantic:may_depend_on"
+            && fact.object == serde_json::json!("view:acme:cross-document-correlation")
+    }));
+    let edges = edges.lock().expect("edges");
+    assert_eq!(edges.len(), 1);
+    assert_eq!(edges[0].kind, indexer::EdgeKind::Related);
 }

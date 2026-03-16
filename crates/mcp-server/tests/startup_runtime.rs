@@ -74,6 +74,12 @@ impl Handler for FileContentHandler {
         Ok(Extraction {
             text,
             has_symbols: file.extension == ".rs",
+            fields: Default::default(),
+            class: None,
+            shape: None,
+            claims: vec![],
+            relations: vec![],
+            notes: vec![],
         })
     }
 }

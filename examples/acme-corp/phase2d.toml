@@ -25,7 +25,7 @@ kind = "builtin_text"
 
 [[registries.executors]]
 name = "python_curator"
-target = "stdio://child:python-worker"
+target = "stdio://child:python3 executors/python_curator.py"
 
 [[registries.rhai_modules]]
 name = "latent_dependencies"

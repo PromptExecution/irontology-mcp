@@ -2,9 +2,10 @@ use std::{collections::BTreeMap, path::Path};
 
 use anyhow::Result;
 use async_trait::async_trait;
+use domain::{Claim, Relation};
 use provider_api::{EmbedRequest, ModelProvider};
 use serde_json::json;
-use storage_neumann::{EmbeddingRecord, FactRecord, FileRecord, KnowledgeStore};
+use storage_neumann::{EdgeKind, EdgeRecord, EmbeddingRecord, FactRecord, FileRecord, KnowledgeStore};
 
 use crate::{chunking::chunk_text, embedding::Modality};
 
@@ -49,6 +50,12 @@ impl IntakeFile {
 pub struct Extraction {
     pub text: String,
     pub has_symbols: bool,
+    pub fields: BTreeMap<String, serde_json::Value>,
+    pub class: Option<String>,
+    pub shape: Option<String>,
+    pub claims: Vec<Claim>,
+    pub relations: Vec<Relation>,
+    pub notes: Vec<String>,
 }
 
 #[async_trait]
@@ -110,6 +117,8 @@ pub async fn index_intake_file(
     }
 
     let file_id = format!("file:git:blob:{blob_id}");
+    let effective_class = intake.class.clone().or_else(|| extraction.class.clone());
+    let effective_shape = intake.shape.clone().or_else(|| extraction.shape.clone());
     store
         .upsert_file(FileRecord {
             id: file_id.clone(),
@@ -140,14 +149,14 @@ pub async fn index_intake_file(
             object: json!(intake.extension),
         },
     ];
-    if let Some(class) = &intake.class {
+    if let Some(class) = &effective_class {
         facts.push(FactRecord {
             subject: file_id.clone(),
             predicate: "class".to_string(),
             object: json!(class),
         });
     }
-    if let Some(shape) = &intake.shape {
+    if let Some(shape) = &effective_shape {
         facts.push(FactRecord {
             subject: file_id.clone(),
             predicate: "shape".to_string(),
@@ -182,7 +191,64 @@ pub async fn index_intake_file(
             object: json!(ontology_ref),
         });
     }
+    for (key, value) in &extraction.fields {
+        facts.push(FactRecord {
+            subject: file_id.clone(),
+            predicate: format!("field:{key}"),
+            object: value.clone(),
+        });
+    }
+    for note in &extraction.notes {
+        facts.push(FactRecord {
+            subject: file_id.clone(),
+            predicate: "semantic_note".to_string(),
+            object: json!(note),
+        });
+    }
+    for claim in &extraction.claims {
+        facts.push(FactRecord {
+            subject: claim.subject.clone(),
+            predicate: claim.predicate.clone(),
+            object: json!(claim.object),
+        });
+        facts.push(FactRecord {
+            subject: file_id.clone(),
+            predicate: format!("claim:{}", claim.predicate),
+            object: json!({
+                "id": claim.id,
+                "subject": claim.subject,
+                "object": claim.object,
+                "namespace": claim.namespace,
+                "confidence": claim.confidence,
+                "evidence": claim.evidence,
+            }),
+        });
+    }
+    let mut edges = Vec::new();
+    for relation in &extraction.relations {
+        edges.push(EdgeRecord {
+            from: relation.subject_id.clone(),
+            to: relation.object_id.clone(),
+            kind: EdgeKind::Related,
+            weight: ((relation.confidence.max(0.0) * 100.0).round() as u32).max(1),
+        });
+        facts.push(FactRecord {
+            subject: file_id.clone(),
+            predicate: format!("relation:{}", relation.predicate),
+            object: json!({
+                "id": relation.id,
+                "from": relation.subject_id,
+                "to": relation.object_id,
+                "namespace": relation.namespace,
+                "confidence": relation.confidence,
+                "evidence": relation.evidence,
+            }),
+        });
+    }
     store.upsert_facts(facts).await?;
+    if !edges.is_empty() {
+        store.upsert_edges(edges).await?;
+    }
 
     let embeddings = provider
         .embed(EmbedRequest {
