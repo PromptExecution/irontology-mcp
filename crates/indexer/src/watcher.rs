@@ -9,7 +9,7 @@ use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use domain::SourceSystemKind;
 use intake::{load_directory_sources, DirectorySource, DIRECTORY_CONFIG_FILE};
-use tokio::{task::{block_in_place, JoinHandle}, time::sleep};
+use tokio::{task::{spawn_blocking, JoinHandle}, time::sleep};
 use watchexec::{error::CriticalError, Watchexec};
 use watchexec_signals::Signal;
 
@@ -294,7 +294,28 @@ async fn await_watchexec(main: JoinHandle<Result<(), CriticalError>>) -> Result<
 }
 
 fn scan_poll_events(roots: &[String]) -> Result<Vec<WatchEvent>> {
-    block_in_place(|| {
+    // Prefer running the blocking directory walk on a Tokio blocking thread when a
+    // runtime is available, but fall back to direct execution when no runtime is present.
+    if let Ok(handle) = tokio::runtime::Handle::try_current() {
+        // `spawn_blocking` requires a `'static` future, so clone the roots into an owned Vec.
+        let roots_owned: Vec<String> = roots.iter().cloned().collect();
+        let join_result = handle.block_on(spawn_blocking(move || {
+            let mut events = Vec::new();
+            for root in roots_owned {
+                let root = PathBuf::from(root);
+                if !root.exists() {
+                    continue;
+                }
+                collect_poll_events(&root, &mut events)?;
+            }
+            Ok(events)
+        }));
+
+        match join_result {
+            Ok(result) => result,
+            Err(error) => Err(anyhow!("scan_poll_events task failed: {error}")),
+        }
+    } else {
         let mut events = Vec::new();
         for root in roots {
             let root = PathBuf::from(root);
@@ -304,7 +325,7 @@ fn scan_poll_events(roots: &[String]) -> Result<Vec<WatchEvent>> {
             collect_poll_events(&root, &mut events)?;
         }
         Ok(events)
-    })
+    }
 }
 
 fn is_ignored_dir_name(name: &str) -> bool {
