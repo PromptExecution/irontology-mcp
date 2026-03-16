@@ -25,9 +25,11 @@ irontology-mcp/
     ├── retrieval/              # Fusion retrieval (vector + graph + lexical + ontology)
     ├── storage-neumann/        # KnowledgeStore trait + NeumannStore in-memory impl
     └── mcp-server/             # MCP transport, ToolRegistry, ResourceRegistry
-```
+└── ...                         # other workspace members, CI config, etc.
 
 ---
+Note: `.promptexecution.toml` files are used on a per-directory basis for source metadata, adapters, and polling configuration where present (for example, alongside specific crates or integration directories). There is no required root-level `.promptexecution.toml` in this repository.
+
 
 ## Guiding Principles
 
