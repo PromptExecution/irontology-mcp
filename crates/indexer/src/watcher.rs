@@ -212,6 +212,9 @@ pub async fn run_watchexec(config: WatchConfig, processor: Arc<dyn ChangeProcess
 
 pub async fn run_poll_loop(config: PollConfig, processor: Arc<dyn ChangeProcessor>) -> Result<()> {
     let interval = Duration::from_secs(config.interval_seconds.max(1));
+    // Track the set of paths seen on the previous iteration so we can skip
+    // reindexing work when nothing has changed between polls.
+    let mut last_paths: BTreeSet<PathBuf> = BTreeSet::new();
     loop {
         let events = match scan_poll_events(&config.roots) {
             Ok(events) => events,
@@ -222,13 +225,25 @@ pub async fn run_poll_loop(config: PollConfig, processor: Arc<dyn ChangeProcesso
             }
         };
 
-        match reindex_changed_paths(events, processor.as_ref()).await {
-            Ok(_summary) => {
-                // Successful iteration; nothing else to do here.
-            }
-            Err(err) => {
-                eprintln!("polling: failed to reindex changed paths: {err}");
-                // Fall through to sleep before next iteration.
+        // Build a set of the current paths for simple change detection.
+        let mut current_paths: BTreeSet<PathBuf> = BTreeSet::new();
+        for event in &events {
+            current_paths.insert(event.path.clone());
+        }
+
+        // Fast-path: if the set of paths is unchanged since the last poll,
+        // skip calling reindex_changed_paths for this iteration.
+        if current_paths != last_paths {
+            last_paths = current_paths;
+
+            match reindex_changed_paths(events, processor.as_ref()).await {
+                Ok(_summary) => {
+                    // Successful iteration; nothing else to do here.
+                }
+                Err(err) => {
+                    eprintln!("polling: failed to reindex changed paths: {err}");
+                    // Fall through to sleep before next iteration.
+                }
             }
         }
 
