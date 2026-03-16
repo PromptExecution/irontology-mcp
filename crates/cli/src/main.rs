@@ -7,7 +7,7 @@ use std::{
     sync::{Arc, LazyLock},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use config::{
     load_phase2d_config, resolve_config_relative, ExtractorKind, LoadedPhase2dConfig,
@@ -228,11 +228,18 @@ fn build_registries(loaded: &LoadedPhase2dConfig) -> Result<RuntimeRegistries> {
         .iter()
         .map(|registration| {
             let path = resolve_config_relative(&registration.path, loaded.path.as_deref());
+            let script = fs::read_to_string(&path).with_context(|| {
+                format!(
+                    "failed to load Rhai module '{}' from path '{}'",
+                    registration.name,
+                    path.display()
+                )
+            })?;
             Ok((
                 registration.name.clone(),
                 CorrelationRule {
                     name: registration.name.clone(),
-                    script: fs::read_to_string(&path)?,
+                    script,
                 },
             ))
         })
