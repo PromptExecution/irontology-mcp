@@ -388,9 +388,9 @@ impl ConfiguredFileContentHandler {
     }
 }
 
-#[async_trait]
 static SEMANTIC_RUNTIME: LazyLock<SemanticRuntime> = LazyLock::new(SemanticRuntime::new);
 
+#[async_trait]
 impl Handler for ConfiguredFileContentHandler {
     async fn extract(&self, file: &IntakeFile) -> Result<Extraction> {
         let path = Path::new(&file.path);
