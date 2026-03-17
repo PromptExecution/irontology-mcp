@@ -1,0 +1,37 @@
+[package]
+name = "cli"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "phase2d"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+axum = "0.7"
+base64 = "0.22"
+blake3 = "1"
+domain = { path = "../domain" }
+forward-mcp = { path = "../forward-mcp" }
+intake = { path = "../intake" }
+indexer = { path = "../indexer" }
+mcp-server = { path = "../mcp-server" }
+orchestrator = { path = "../orchestrator" }
+provider-local = { path = "../provider-local" }
+provider-openai = { path = "../provider-openai" }
+provider-api = { path = "../provider-api" }
+provider-test = { path = "../provider-test" }
+retrieval = { path = "../retrieval" }
+semantic-runtime = { path = "../semantic-runtime" }
+serde.workspace = true
+serde_json.workspace = true
+shlex = "1"
+storage-neumann = { path = "../storage-neumann" }
+tokio = { workspace = true, features = ["fs", "io-util", "rt-multi-thread", "signal"] }
+toml.workspace = true
+
+[dev-dependencies]
+tokio = { version = "1", features = ["io-util", "macros", "process", "rt-multi-thread"] }
+tempfile = "3"

@@ -14,11 +14,7 @@ impl DslRuleMatcherAdapter {
 
 impl RuleMatcher for DslRuleMatcherAdapter {
     fn match_file(&self, file: &IntakeFile) -> bool {
-        let fields = file
-            .fields
-            .iter()
-            .map(String::as_str)
-            .collect::<Vec<_>>();
+        let fields = file.fields.iter().map(String::as_str).collect::<Vec<_>>();
 
         let input = DslInputFile {
             extension: &file.extension,

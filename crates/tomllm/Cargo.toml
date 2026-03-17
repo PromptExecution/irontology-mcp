@@ -1,0 +1,8 @@
+[package]
+name = "tomllm"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+toml.workspace = true

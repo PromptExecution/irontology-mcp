@@ -7,11 +7,11 @@ use anyhow::Result;
 use async_trait::async_trait;
 use dsl::compile_rule;
 use indexer::{
-    index_file,
-    pipeline::{EmbedResponse, EmbeddingRecord, Extraction},
-    DslRuleMatcherAdapter, EmbedRequest, GitLedger, Handler, IntakeFile, KnowledgeStore,
-    ModelProvider, RuleMatcher,
+    index_file, DslRuleMatcherAdapter, EdgeRecord, EmbedRequest, EmbedResponse, EmbeddingRecord,
+    Extraction, FactRecord, FileRecord, GitLedger, Handler, IntakeFile, KnowledgeStore,
+    ModelProvider, RuleMatcher, SemanticQuery, StoreHealth,
 };
+use provider_api::{ChatRequest, ChatResponse, ProviderHealth, TokenUsage};
 
 struct FakeLedger {
     blob: &'static str,
@@ -55,9 +55,40 @@ impl KnowledgeStore for StoreProbe {
         Ok(self.existing)
     }
 
+    async fn upsert_file(&self, _file: FileRecord) -> Result<()> {
+        Ok(())
+    }
+
+    async fn upsert_facts(&self, _facts: Vec<FactRecord>) -> Result<()> {
+        Ok(())
+    }
+
+    async fn upsert_edges(&self, _edges: Vec<EdgeRecord>) -> Result<()> {
+        Ok(())
+    }
+
     async fn upsert_embeddings(&self, embeddings: Vec<EmbeddingRecord>) -> Result<()> {
         self.seen.lock().expect("lock").extend(embeddings);
         Ok(())
+    }
+
+    async fn ingest_turtle(&self, _source: &str, _turtle: &str) -> Result<()> {
+        Ok(())
+    }
+
+    async fn related_objects(&self, _subject: &str, _predicate: &str) -> Result<Vec<String>> {
+        Ok(vec![])
+    }
+
+    async fn query(&self, _q: SemanticQuery) -> Result<storage_neumann::QueryResult> {
+        Ok(storage_neumann::QueryResult::default())
+    }
+
+    async fn health(&self) -> Result<StoreHealth> {
+        Ok(StoreHealth {
+            healthy: true,
+            message: "ok".to_string(),
+        })
     }
 }
 
@@ -67,6 +98,14 @@ struct ProviderProbe {
 
 #[async_trait]
 impl ModelProvider for ProviderProbe {
+    async fn chat(&self, _req: ChatRequest) -> Result<ChatResponse> {
+        Ok(ChatResponse {
+            model: "probe".to_string(),
+            content: "unused".to_string(),
+            usage: TokenUsage::default(),
+        })
+    }
+
     async fn embed(&self, req: EmbedRequest) -> Result<EmbedResponse> {
         *self.calls.lock().expect("lock") += 1;
         let vectors = req
@@ -74,7 +113,22 @@ impl ModelProvider for ProviderProbe {
             .iter()
             .map(|_| Arc::from([0.1_f32, 0.2_f32]))
             .collect();
-        Ok(EmbedResponse { vectors })
+        Ok(EmbedResponse {
+            model: "probe".to_string(),
+            vectors,
+            usage: TokenUsage::default(),
+        })
+    }
+
+    async fn health(&self) -> Result<ProviderHealth> {
+        Ok(ProviderHealth {
+            healthy: true,
+            message: "ok".to_string(),
+        })
+    }
+
+    fn model_id(&self) -> &str {
+        "probe"
     }
 }
 
@@ -128,6 +182,12 @@ async fn dsl_rule_match_indexes_rust_file() {
             extraction: Extraction {
                 text: "fn alpha() {}".to_string(),
                 has_symbols: true,
+                fields: Default::default(),
+                class: None,
+                shape: None,
+                claims: vec![],
+                relations: vec![],
+                notes: vec![],
             },
         },
         &StoreProbe {

@@ -1,0 +1,12 @@
+[package]
+name = "semantic-runtime"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+domain = { path = "../domain" }
+rhai = "1"
+
+[dev-dependencies]
+serde_json.workspace = true

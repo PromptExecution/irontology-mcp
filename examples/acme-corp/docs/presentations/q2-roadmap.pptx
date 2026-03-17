@@ -1,0 +1,5 @@
+Acme Q2 roadmap
+
+Topic: payment retries stabilization
+Topic: standing data alignment between operations and architecture
+Outcome: reduce hidden dependencies before platform launch

@@ -1,0 +1,12 @@
+[package]
+name = "naming"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+classifier = { path = "../classifier" }
+dsl = { path = "../dsl" }
+handlers = { path = "../handlers" }
+serde.workspace = true
+serde_json.workspace = true

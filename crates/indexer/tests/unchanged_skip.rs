@@ -6,10 +6,11 @@ use std::{
 use anyhow::Result;
 use async_trait::async_trait;
 use indexer::{
-    index_file,
-    pipeline::{EmbedResponse, EmbeddingRecord, Extraction},
-    EmbedRequest, GitLedger, Handler, IntakeFile, KnowledgeStore, ModelProvider, RuleMatcher,
+    index_file, EdgeRecord, EmbedRequest, EmbedResponse, EmbeddingRecord, Extraction, FactRecord,
+    FileRecord, GitLedger, Handler, IntakeFile, KnowledgeStore, ModelProvider, RuleMatcher,
+    SemanticQuery, StoreHealth,
 };
+use provider_api::{ChatRequest, ChatResponse, ProviderHealth, TokenUsage};
 
 struct FakeLedger;
 #[async_trait]
@@ -40,8 +41,32 @@ impl KnowledgeStore for FakeStore {
     async fn has_blob(&self, _blob_id: &str) -> Result<bool> {
         Ok(true)
     }
+    async fn upsert_file(&self, _file: FileRecord) -> Result<()> {
+        Ok(())
+    }
+    async fn upsert_facts(&self, _facts: Vec<FactRecord>) -> Result<()> {
+        Ok(())
+    }
+    async fn upsert_edges(&self, _edges: Vec<EdgeRecord>) -> Result<()> {
+        Ok(())
+    }
     async fn upsert_embeddings(&self, _embeddings: Vec<EmbeddingRecord>) -> Result<()> {
         Ok(())
+    }
+    async fn ingest_turtle(&self, _source: &str, _turtle: &str) -> Result<()> {
+        Ok(())
+    }
+    async fn related_objects(&self, _subject: &str, _predicate: &str) -> Result<Vec<String>> {
+        Ok(vec![])
+    }
+    async fn query(&self, _q: SemanticQuery) -> Result<storage_neumann::QueryResult> {
+        Ok(storage_neumann::QueryResult::default())
+    }
+    async fn health(&self) -> Result<StoreHealth> {
+        Ok(StoreHealth {
+            healthy: true,
+            message: "ok".to_string(),
+        })
     }
 }
 
@@ -51,9 +76,32 @@ struct ProbeProvider {
 
 #[async_trait]
 impl ModelProvider for ProbeProvider {
+    async fn chat(&self, _req: ChatRequest) -> Result<ChatResponse> {
+        Ok(ChatResponse {
+            model: "probe".to_string(),
+            content: "unused".to_string(),
+            usage: TokenUsage::default(),
+        })
+    }
+
     async fn embed(&self, _req: EmbedRequest) -> Result<EmbedResponse> {
         *self.called.lock().expect("lock") = true;
-        Ok(EmbedResponse { vectors: vec![] })
+        Ok(EmbedResponse {
+            model: "probe".to_string(),
+            vectors: vec![],
+            usage: TokenUsage::default(),
+        })
+    }
+
+    async fn health(&self) -> Result<ProviderHealth> {
+        Ok(ProviderHealth {
+            healthy: true,
+            message: "ok".to_string(),
+        })
+    }
+
+    fn model_id(&self) -> &str {
+        "probe"
     }
 }
 
