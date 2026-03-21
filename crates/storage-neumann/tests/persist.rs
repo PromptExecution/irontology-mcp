@@ -15,14 +15,14 @@ async fn turtle_ingest_persists_across_restart() {
 "#;
 
     {
-        let store = NeumannStore::new(config.clone());
+        let store = NeumannStore::try_new(config.clone()).expect("open store");
         store
             .ingest_turtle("ontology://persist", turtle)
             .await
             .expect("ingest turtle");
     }
 
-    let store = NeumannStore::new(config);
+    let store = NeumannStore::try_new(config).expect("open store");
     let related = store
         .related_objects(
             "https://example.org/pe/doc/incident-42",

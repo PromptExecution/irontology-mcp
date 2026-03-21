@@ -443,7 +443,7 @@ impl McpServerRuntime {
         config: Phase2RuntimeConfig,
     ) -> Result<Self> {
         let resources = ResourceRegistry::with_phase2_resources();
-        let store: Arc<dyn KnowledgeStore> = Arc::new(NeumannStore::new(config.neumann.clone()));
+        let store: Arc<dyn KnowledgeStore> = Arc::new(NeumannStore::try_new(config.neumann.clone())?);
 
         for resource in resources.all() {
             if resource.mime_type == "text/turtle" {

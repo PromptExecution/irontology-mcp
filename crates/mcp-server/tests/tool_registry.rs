@@ -5,8 +5,9 @@ use orchestrator::{AgentRunResponse, StaticExecutor};
 use provider_test::FixtureProvider;
 use retrieval::{RankedResult, SearchBackend};
 use serde_json::json;
-use storage_neumann::{KnowledgeStore, NeumannStore, SemanticQuery};
+use storage_neumann::{config::NeumannConfig, KnowledgeStore, NeumannStore, SemanticQuery};
 use std::sync::Arc;
+use tempfile::tempdir;
 use uuid::Uuid;
 
 struct FixedBackend;
@@ -124,7 +125,9 @@ async fn registry_invokes_agent_run_tool() {
 
 #[tokio::test]
 async fn registry_invokes_repo_index_tool_and_persists_embeddings() {
-    let store: Arc<dyn KnowledgeStore> = Arc::new(NeumannStore::new(Default::default()));
+    let dir = tempdir().expect("tempdir");
+    let config = NeumannConfig { data_path: Some(dir.path().join("store")), ..Default::default() };
+    let store: Arc<dyn KnowledgeStore> = Arc::new(NeumannStore::try_new(config).expect("open store"));
     let provider = Arc::new(FixtureProvider::new("fixture-embed").with_embedding_dim(4));
     let registry =
         ToolRegistry::with_phase2_tools_and_provider(Box::new(FixedBackend), store.clone(), provider);
@@ -158,7 +161,9 @@ async fn registry_invokes_repo_index_tool_and_persists_embeddings() {
 async fn repo_index_rejects_oversized_content() {
     use mcp_server::tools::repo_index::{MAX_CONTENT_BYTES, MAX_CHUNKS};
 
-    let store: Arc<dyn KnowledgeStore> = Arc::new(NeumannStore::new(Default::default()));
+    let dir = tempdir().expect("tempdir");
+    let config = NeumannConfig { data_path: Some(dir.path().join("store")), ..Default::default() };
+    let store: Arc<dyn KnowledgeStore> = Arc::new(NeumannStore::try_new(config).expect("open store"));
     let provider = Arc::new(FixtureProvider::new("fixture-embed").with_embedding_dim(4));
     let registry =
         ToolRegistry::with_phase2_tools_and_provider(Box::new(FixedBackend), store.clone(), provider);
