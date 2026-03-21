@@ -296,10 +296,33 @@ impl KnowledgeStore for NeumannStore {
 
         for triple in parsed {
             let stored = StoredSemanticTriple::from(triple);
-            self.semantic_triples.insert(
-                triple_key(&stored.subject, &stored.predicate, &stored.object),
-                serde_json::to_vec(&stored)?,
-            )?;
+            let key = triple_key(&stored.subject, &stored.predicate, &stored.object);
+
+            if let Some(existing_bytes) = self.semantic_triples.get(&key)? {
+                // Merge provenance: keep a combined, de-duplicated list of sources
+                let mut existing: StoredSemanticTriple =
+                    serde_json::from_slice(&existing_bytes)?;
+
+                let new_source = &stored.source;
+                let already_present = existing
+                    .source
+                    .split(';')
+                    .any(|s| s == new_source);
+
+                if !already_present {
+                    if existing.source.is_empty() {
+                        existing.source = new_source.clone();
+                    } else {
+                        existing.source.push(';');
+                        existing.source.push_str(new_source);
+                    }
+                    self.semantic_triples
+                        .insert(&key, serde_json::to_vec(&existing)?)?;
+                }
+            } else {
+                self.semantic_triples
+                    .insert(&key, serde_json::to_vec(&stored)?)?;
+            }
         }
         self.db.flush()?;
         Ok(())
