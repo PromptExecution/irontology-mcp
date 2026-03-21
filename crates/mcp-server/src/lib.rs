@@ -22,7 +22,7 @@ use crate::tools::{
     agent_forward_mcp::AgentForwardMcpTool, agent_run::AgentRunTool,
     ontology_list_classes::OntologyListClassesTool,
     ontology_related_resources::OntologyRelatedResourcesTool, repo_read_symbol::RepoReadSymbolTool,
-    repo_search::RepoSearchTool,
+    repo_index::RepoIndexTool, repo_search::RepoSearchTool,
 };
 
 #[async_trait]
@@ -65,6 +65,7 @@ impl ToolRegistry {
     pub fn with_phase2_tools(backend: Box<dyn SearchBackend + Send + Sync>) -> Self {
         Self::with_phase2_tools_and_execution(
             backend,
+            None,
             Arc::new(DisabledForwarder),
             Arc::new(DisabledExecutor),
         )
@@ -74,18 +75,43 @@ impl ToolRegistry {
         backend: Box<dyn SearchBackend + Send + Sync>,
         forwarder: Arc<dyn McpForwarder>,
     ) -> Self {
-        Self::with_phase2_tools_and_execution(backend, forwarder, Arc::new(DisabledExecutor))
+        Self::with_phase2_tools_and_execution(
+            backend,
+            None,
+            forwarder,
+            Arc::new(DisabledExecutor),
+        )
     }
 
     pub fn with_phase2_tools_and_executor(
         backend: Box<dyn SearchBackend + Send + Sync>,
         executor: Arc<dyn AgentExecutor>,
     ) -> Self {
-        Self::with_phase2_tools_and_execution(backend, Arc::new(DisabledForwarder), executor)
+        Self::with_phase2_tools_and_execution(
+            backend,
+            None,
+            Arc::new(DisabledForwarder),
+            executor,
+        )
+    }
+
+    pub fn with_phase2_tools_and_provider(
+        backend: Box<dyn SearchBackend + Send + Sync>,
+        store: Arc<dyn KnowledgeStore>,
+        provider: Arc<dyn ModelProvider>,
+    ) -> Self {
+        Self::with_phase2_tools_and_ontology_and_execution(
+            backend,
+            store,
+            Some(provider),
+            Arc::new(DisabledForwarder),
+            Arc::new(DisabledExecutor),
+        )
     }
 
     pub fn with_phase2_tools_and_execution(
         backend: Box<dyn SearchBackend + Send + Sync>,
+        _provider: Option<Arc<dyn ModelProvider>>,
         forwarder: Arc<dyn McpForwarder>,
         executor: Arc<dyn AgentExecutor>,
     ) -> Self {
@@ -105,6 +131,7 @@ impl ToolRegistry {
         Self::with_phase2_tools_and_ontology_and_execution(
             backend,
             store,
+            None,
             Arc::new(DisabledForwarder),
             Arc::new(DisabledExecutor),
         )
@@ -118,6 +145,7 @@ impl ToolRegistry {
         Self::with_phase2_tools_and_ontology_and_execution(
             backend,
             store,
+            None,
             forwarder,
             Arc::new(DisabledExecutor),
         )
@@ -131,6 +159,7 @@ impl ToolRegistry {
         Self::with_phase2_tools_and_ontology_and_execution(
             backend,
             store,
+            None,
             Arc::new(DisabledForwarder),
             executor,
         )
@@ -139,10 +168,15 @@ impl ToolRegistry {
     pub fn with_phase2_tools_and_ontology_and_execution(
         backend: Box<dyn SearchBackend + Send + Sync>,
         store: Arc<dyn KnowledgeStore>,
+        provider: Option<Arc<dyn ModelProvider>>,
         forwarder: Arc<dyn McpForwarder>,
         executor: Arc<dyn AgentExecutor>,
     ) -> Self {
-        let mut registry = Self::with_phase2_tools_and_execution(backend, forwarder, executor);
+        let mut registry =
+            Self::with_phase2_tools_and_execution(backend, provider.clone(), forwarder, executor);
+        if let Some(provider) = provider {
+            registry.register(Arc::new(RepoIndexTool::new(store.clone(), provider)));
+        }
         registry.register(Arc::new(OntologyRelatedResourcesTool::new(store)));
         registry
     }
@@ -205,6 +239,7 @@ pub struct PollRuntimeConfig {
 
 pub struct Phase2RuntimeConfig {
     pub neumann: NeumannConfig,
+    pub provider: Option<Arc<dyn ModelProvider>>,
     pub forwarder: Arc<dyn McpForwarder>,
     pub executor: Arc<dyn AgentExecutor>,
     pub watch: Option<WatchRuntimeConfig>,
@@ -215,11 +250,17 @@ impl Phase2RuntimeConfig {
     pub fn new(neumann: NeumannConfig) -> Self {
         Self {
             neumann,
+            provider: None,
             forwarder: Arc::new(DisabledForwarder),
             executor: Arc::new(DisabledExecutor),
             watch: None,
             polls: Vec::new(),
         }
+    }
+
+    pub fn with_provider(mut self, provider: Arc<dyn ModelProvider>) -> Self {
+        self.provider = Some(provider);
+        self
     }
 
     pub fn with_transport_forwarding(mut self) -> Self {
@@ -413,6 +454,7 @@ impl McpServerRuntime {
         let tools = ToolRegistry::with_phase2_tools_and_ontology_and_execution(
             backend,
             store.clone(),
+            config.provider.clone(),
             config.forwarder,
             config.executor,
         );

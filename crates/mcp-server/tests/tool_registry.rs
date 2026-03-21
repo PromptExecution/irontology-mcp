@@ -2,8 +2,11 @@ use anyhow::Result;
 use forward_mcp::{ForwardResponse, StaticForwarder};
 use mcp_server::ToolRegistry;
 use orchestrator::{AgentRunResponse, StaticExecutor};
+use provider_test::FixtureProvider;
 use retrieval::{RankedResult, SearchBackend};
 use serde_json::json;
+use storage_neumann::{KnowledgeStore, NeumannStore, SemanticQuery};
+use std::sync::Arc;
 use uuid::Uuid;
 
 struct FixedBackend;
@@ -117,4 +120,78 @@ async fn registry_invokes_agent_run_tool() {
     assert_eq!(response["answer"], "bounded answer");
     assert_eq!(executor.seen_requests()[0].model, "local/code");
     assert_eq!(executor.seen_requests()[0].context, vec!["repo://tree"]);
+}
+
+#[tokio::test]
+async fn registry_invokes_repo_index_tool_and_persists_embeddings() {
+    let store: Arc<dyn KnowledgeStore> = Arc::new(NeumannStore::new(Default::default()));
+    let provider = Arc::new(FixtureProvider::new("fixture-embed").with_embedding_dim(4));
+    let registry =
+        ToolRegistry::with_phase2_tools_and_provider(Box::new(FixedBackend), store.clone(), provider);
+
+    assert!(registry.has("repo.index"));
+
+    let tool = registry.get("repo.index").expect("repo index tool");
+    let response = tool
+        .call(json!({
+            "topic": "auth-risks",
+            "content": "a".repeat(700),
+            "source": "https://example.com/auth"
+        }))
+        .await
+        .expect("repo index call");
+
+    assert_eq!(response["chunks_created"], 2);
+
+    let stored = store
+        .query(SemanticQuery::Vector {
+            embedding: Arc::from([1.0_f32, 0.0, 0.0, 0.0]),
+            top_k: 10,
+            modality: None,
+        })
+        .await
+        .expect("query embeddings");
+    assert_eq!(stored.ids.len(), 2);
+}
+
+#[tokio::test]
+async fn repo_index_rejects_oversized_content() {
+    use mcp_server::tools::repo_index::{MAX_CONTENT_BYTES, MAX_CHUNKS};
+
+    let store: Arc<dyn KnowledgeStore> = Arc::new(NeumannStore::new(Default::default()));
+    let provider = Arc::new(FixtureProvider::new("fixture-embed").with_embedding_dim(4));
+    let registry =
+        ToolRegistry::with_phase2_tools_and_provider(Box::new(FixedBackend), store.clone(), provider);
+
+    let tool = registry.get("repo.index").expect("repo index tool");
+
+    // Content that exceeds MAX_CONTENT_BYTES should be rejected.
+    let oversized = "x".repeat(MAX_CONTENT_BYTES + 1);
+    let err = tool
+        .call(json!({
+            "topic": "oversized",
+            "content": oversized
+        }))
+        .await
+        .expect_err("expected error for oversized content");
+    assert!(
+        err.to_string().contains("exceeds maximum allowed size"),
+        "unexpected error: {err}"
+    );
+
+    // Content that fits in bytes but would produce too many chunks.
+    // chunk_text splits on byte offsets (512 bytes per chunk for ASCII content);
+    // (MAX_CHUNKS + 1) * 512 bytes of ASCII produces MAX_CHUNKS + 1 chunks.
+    let too_many_chunks = "y".repeat((MAX_CHUNKS + 1) * 512);
+    let err = tool
+        .call(json!({
+            "topic": "too-many-chunks",
+            "content": too_many_chunks
+        }))
+        .await
+        .expect_err("expected error for too many chunks");
+    assert!(
+        err.to_string().contains("exceeds the maximum"),
+        "unexpected error: {err}"
+    );
 }

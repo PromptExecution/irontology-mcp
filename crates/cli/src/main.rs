@@ -135,6 +135,7 @@ fn build_runtime_bootstrap(
     ));
 
     let mut phase2 = Phase2RuntimeConfig::new(NeumannConfig::from(loaded.config.neumann.clone()))
+        .with_provider(provider.clone())
         .with_forwarder(forwarder)
         .with_executor(executor);
 
