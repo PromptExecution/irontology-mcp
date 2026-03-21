@@ -7,19 +7,20 @@ use anyhow::Result;
 use rmcp::{
     handler::server::ServerHandler,
     model::{
-        CallToolRequestParam, CallToolResult, Content, ErrorData, Implementation,
-        ListToolsResult, PaginatedRequestParam, ProtocolVersion, RequestContext,
-        ServerCapabilities, ServerInfo, ToolDescription,
+        CallToolRequestParam, CallToolResult, Content, Implementation, ListToolsResult,
+        PaginatedRequestParam, ProtocolVersion, ServerCapabilities, ServerInfo, Tool,
     },
+    service::RequestContext,
     transport::io::stdio,
-    RoleServer, ServiceExt,
+    ErrorData as McpError, RoleServer, ServiceExt,
 };
 use serde_json::Value;
+use std::sync::Arc;
 use tokio::signal::ctrl_c;
 
 use mcp_server::McpServerRuntime;
 use retrieval::DeterministicBackend;
-use storage_neumann::config::NeumannConfig;
+use storage_neumann::NeumannConfig;
 
 pub struct IrontologyMcpServer {
     runtime: McpServerRuntime,
@@ -41,8 +42,11 @@ impl IrontologyMcpServer {
 
 #[async_trait::async_trait]
 impl ServerHandler for IrontologyMcpServer {
-    async fn ping(&self, _context: RequestContext<RoleServer>) -> Result<(), ErrorData> {
-        Ok(())
+    fn ping(
+        &self,
+        _context: RequestContext<RoleServer>,
+    ) -> impl std::future::Future<Output = Result<(), McpError>> + Send + '_ {
+        std::future::ready(Ok(()))
     }
 
     fn get_info(&self) -> ServerInfo {
@@ -51,6 +55,7 @@ impl ServerHandler for IrontologyMcpServer {
             server_info: Implementation {
                 name: "irontology-mcp".into(),
                 version: "0.1.0".into(),
+                ..Default::default()
             },
             instructions: Some(
                 "irontology-mcp: semantic graph/RAG MCP server. \
@@ -63,55 +68,76 @@ impl ServerHandler for IrontologyMcpServer {
         }
     }
 
-    async fn list_tools(
+    fn list_tools(
         &self,
         _request: Option<PaginatedRequestParam>,
         _context: RequestContext<RoleServer>,
-    ) -> Result<ListToolsResult, ErrorData> {
-        let mut tools = Vec::new();
+    ) -> impl std::future::Future<Output = Result<ListToolsResult, McpError>> + Send + '_ {
+        async move {
+            let mut tools = Vec::new();
 
-        let tool_names = ["repo.search", "repo.read_symbol", "ontology.list_classes", "ontology.related_resources"];
-        for name in &tool_names {
-            if let Some(tool) = self.runtime.tools.get(name) {
-                tools.push(ToolDescription {
-                    name: tool.name().into(),
-                    description: tool.description().into(),
-                    input_schema: tool.input_schema(),
-                });
+            let tool_names = [
+                "repo.search",
+                "repo.read_symbol",
+                "ontology.list_classes",
+                "ontology.related_resources",
+            ];
+            for name in &tool_names {
+                if let Some(tool) = self.runtime.tools.get(name) {
+                    let input_schema = match tool.input_schema() {
+                        Value::Object(schema) => Arc::new(schema),
+                        other => {
+                            return Err(McpError::invalid_request(
+                                format!("tool {} returned non-object input schema", tool.name()),
+                                Some(other),
+                            ));
+                        }
+                    };
+
+                    tools.push(Tool {
+                        name: tool.name().to_string().into(),
+                        title: None,
+                        description: Some(tool.description().to_string().into()),
+                        input_schema,
+                        output_schema: None,
+                        annotations: None,
+                        icons: None,
+                    });
+                }
             }
-        }
 
-        Ok(ListToolsResult {
-            tools,
-            next_cursor: None,
-        })
+            Ok(ListToolsResult {
+                tools,
+                next_cursor: None,
+            })
+        }
     }
 
-    async fn call_tool(
+    fn call_tool(
         &self,
         request: CallToolRequestParam,
         _context: RequestContext<RoleServer>,
-    ) -> Result<CallToolResult, ErrorData> {
-        let tool_name = request.name.as_ref();
-        let params = Value::Object(request.arguments.unwrap_or_default());
+    ) -> impl std::future::Future<Output = Result<CallToolResult, McpError>> + Send + '_ {
+        async move {
+            let tool_name = request.name.as_ref();
+            let params = Value::Object(request.arguments.unwrap_or_default());
 
-        if let Some(tool) = self.runtime.tools.get(tool_name) {
-            match tool.call(params).await {
-                Ok(result) => {
-                    Ok(CallToolResult::success(vec![Content::text(
+            if let Some(tool) = self.runtime.tools.get(tool_name) {
+                match tool.call(params).await {
+                    Ok(result) => Ok(CallToolResult::success(vec![Content::text(
                         result.to_string(),
-                    )]))
+                    )])),
+                    Err(e) => Ok(CallToolResult::success(vec![Content::text(format!(
+                        "Error: {}",
+                        e
+                    ))])),
                 }
-                Err(e) => {
-                    Ok(CallToolResult::success(vec![Content::text(
-                        format!("Error: {}", e),
-                    )]))
-                }
+            } else {
+                Ok(CallToolResult::success(vec![Content::text(format!(
+                    "Tool {} not found",
+                    tool_name
+                ))]))
             }
-        } else {
-            Ok(CallToolResult::success(vec![Content::text(
-                format!("Tool {} not found", tool_name),
-            )]))
         }
     }
 }
