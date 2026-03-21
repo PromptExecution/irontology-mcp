@@ -9,6 +9,11 @@ use storage_neumann::{EmbeddingModality, EmbeddingRecord, KnowledgeStore};
 
 use crate::Tool;
 
+/// Maximum allowed content size in bytes (512 KiB).
+pub const MAX_CONTENT_BYTES: usize = 512 * 1024;
+/// Maximum number of chunks produced from a single ingestion call.
+pub const MAX_CHUNKS: usize = 256;
+
 pub struct RepoIndexTool {
     store: Arc<dyn KnowledgeStore>,
     provider: Arc<dyn ModelProvider>,
@@ -27,7 +32,8 @@ impl Tool for RepoIndexTool {
     }
 
     fn description(&self) -> &str {
-        "Index content into the knowledge store (chunk, embed, upsert)"
+        "Index content into the knowledge store (chunk, embed, upsert). \
+         Content must not exceed 512 KiB and must produce no more than 256 chunks."
     }
 
     fn input_schema(&self) -> Value {
@@ -35,7 +41,10 @@ impl Tool for RepoIndexTool {
             "type": "object",
             "properties": {
                 "topic": { "type": "string" },
-                "content": { "type": "string" },
+                "content": {
+                    "type": "string",
+                    "description": "Text to index. Maximum 524288 bytes (512 KiB)."
+                },
                 "source": {
                     "type": "string",
                     "description": "URL or file path"
@@ -56,7 +65,23 @@ impl Tool for RepoIndexTool {
             .ok_or_else(|| anyhow!("content missing"))?;
         let source = params.get("source").and_then(Value::as_str);
 
+        if content.len() > MAX_CONTENT_BYTES {
+            return Err(anyhow!(
+                "content exceeds maximum allowed size of {} bytes (UTF-8 byte size; got {} bytes)",
+                MAX_CONTENT_BYTES,
+                content.len()
+            ));
+        }
+
         let chunks = chunk_text(content, 512);
+
+        if chunks.len() > MAX_CHUNKS {
+            return Err(anyhow!(
+                "content produces {} chunks which exceeds the maximum of {}",
+                chunks.len(),
+                MAX_CHUNKS
+            ));
+        }
         if chunks.is_empty() {
             return Ok(json!({ "chunks_created": 0 }));
         }
