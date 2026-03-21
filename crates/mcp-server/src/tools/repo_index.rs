@@ -74,13 +74,12 @@ impl Tool for RepoIndexTool {
             })
             .await?;
 
-        let mut records = Vec::with_capacity(embeddings.vectors.len());
-        for (index, vector) in embeddings.vectors.into_iter().enumerate() {
-            let chunk_id = blake3::hash(
-                format!("{topic}\n{source_ref}\n{index}\n{}", chunks[index]).as_bytes(),
-            )
-            .to_hex()
-            .to_string();
+        let mut records = Vec::with_capacity(embeddings.vectors.len().min(chunks.len()));
+        for (index, (chunk, vector)) in chunks.iter().zip(embeddings.vectors).enumerate() {
+            let chunk_id =
+                blake3::hash(format!("{topic}\n{source_ref}\n{index}\n{chunk}").as_bytes())
+                    .to_hex()
+                    .to_string();
             records.push(EmbeddingRecord {
                 id: format!("repo.index:{topic}:{chunk_id}"),
                 source_blob: source_blob.clone(),
@@ -90,10 +89,11 @@ impl Tool for RepoIndexTool {
             });
         }
 
+        let chunks_created = records.len();
         self.store.upsert_embeddings(records).await?;
 
         Ok(json!({
-            "chunks_created": chunks.len()
+            "chunks_created": chunks_created
         }))
     }
 }
