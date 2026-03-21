@@ -415,14 +415,38 @@ impl KnowledgeStore for NeumannStore {
 }
 
 fn resolve_data_path(config: &NeumannConfig) -> PathBuf {
-    config.data_path.clone().unwrap_or_else(|| {
-        let home = std::env::var_os("HOME")
+    if let Some(explicit) = config.data_path.clone() {
+        return explicit;
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        // On Windows, prefer roaming AppData, then LocalAppData, then USERPROFILE.
+        // Fall back to a stable system-wide location if none are set, instead of CWD.
+        let base = std::env::var_os("APPDATA")
+            .or_else(|| std::env::var_os("LOCALAPPDATA"))
+            .or_else(|| std::env::var_os("USERPROFILE"))
             .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from("."));
-        home.join(".b00t")
-            .join("neumann")
-            .join(&config.namespace)
-    })
+            .unwrap_or_else(|| PathBuf::from(r"C:\ProgramData"));
+
+        return base.join("b00t").join("neumann").join(&config.namespace);
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        // On Unix-like systems, follow XDG base directory specification when possible.
+        // Use $XDG_DATA_HOME, then ~/.local/share, and finally a stable system directory.
+        let base = std::env::var_os("XDG_DATA_HOME")
+            .map(PathBuf::from)
+            .or_else(|| {
+                std::env::var_os("HOME")
+                    .map(PathBuf::from)
+                    .map(|home| home.join(".local").join("share"))
+            })
+            .unwrap_or_else(|| PathBuf::from("/var/lib"));
+
+        return base.join("b00t").join("neumann").join(&config.namespace);
+    }
 }
 
 fn cosine(a: &[f32], b: &[f32]) -> f32 {
