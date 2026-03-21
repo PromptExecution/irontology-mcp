@@ -346,13 +346,19 @@ impl KnowledgeStore for NeumannStore {
                 top_k,
                 modality,
             } => {
-                let mut scored: Vec<(String, f32)> = self
+                let records: Vec<EmbeddingRecord> = self
                     .embeddings
                     .iter()
                     .values()
-                    .filter_map(|value| value.ok())
-                    .filter_map(|value| serde_json::from_slice::<StoredEmbeddingRecord>(&value).ok())
-                    .map(EmbeddingRecord::from)
+                    .map(|value| -> Result<EmbeddingRecord> {
+                        let bytes = value?;
+                        let stored = serde_json::from_slice::<StoredEmbeddingRecord>(&bytes)?;
+                        Ok(EmbeddingRecord::from(stored))
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+
+                let mut scored: Vec<(String, f32)> = records
+                    .into_iter()
                     .filter(|record| match modality {
                         Some(candidate) => candidate == record.modality,
                         None => true,
