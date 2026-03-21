@@ -1,7 +1,8 @@
 //! irontology-mcp — semantic graph/RAG MCP server
 //!
 //! Stdio transport: JSON-RPC 2.0 over stdin/stdout
-//! Tools: repo.search, repo.index, repo.read_symbol, ontology.list_classes, ontology.related_resources
+//! Tools: repo.search, repo.read_symbol, ontology.list_classes, ontology.related_resources
+//! (repo.index is available only when a provider is configured, e.g., via the CLI runtime)
 
 use anyhow::Result;
 use rmcp::{
