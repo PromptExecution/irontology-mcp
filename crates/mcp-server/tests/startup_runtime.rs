@@ -200,6 +200,44 @@ async fn startup_with_watch_runtime_indexes_changed_files() {
     runtime.shutdown().await.expect("shutdown runtime");
 }
 
+#[tokio::test]
+async fn startup_with_provider_registers_repo_index_tool() {
+    let runtime = McpServerRuntime::start_phase2_configured(
+        Box::new(FixedBackend),
+        Phase2RuntimeConfig::new(NeumannConfig::default())
+            .with_provider(Arc::new(FixtureProvider::new("fixture-embed").with_embedding_dim(4))),
+    )
+    .await
+    .expect("start runtime with provider");
+
+    assert!(runtime.tools.has("repo.index"));
+
+    let tool = runtime.tools.get("repo.index").expect("repo index tool");
+    let response = tool
+        .call(json!({
+            "topic": "grok-digest",
+            "content": "payment retries and auth edge cases",
+            "source": "https://example.com/notes"
+        }))
+        .await
+        .expect("repo index call");
+
+    assert_eq!(response["chunks_created"], 1);
+
+    let result = runtime
+        .store
+        .query(SemanticQuery::Vector {
+            embedding: Arc::from([1.0_f32, 0.0, 0.0, 0.0]),
+            top_k: 10,
+            modality: None,
+        })
+        .await
+        .expect("query vector store");
+    assert_eq!(result.ids.len(), 1);
+
+    runtime.shutdown().await.expect("shutdown runtime");
+}
+
 async fn spawn_forward_server(state: MockForwardState) -> String {
     async fn forward(
         State(state): State<MockForwardState>,

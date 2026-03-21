@@ -2,8 +2,11 @@ use anyhow::Result;
 use forward_mcp::{ForwardResponse, StaticForwarder};
 use mcp_server::ToolRegistry;
 use orchestrator::{AgentRunResponse, StaticExecutor};
+use provider_test::FixtureProvider;
 use retrieval::{RankedResult, SearchBackend};
 use serde_json::json;
+use storage_neumann::{KnowledgeStore, NeumannStore, SemanticQuery};
+use std::sync::Arc;
 use uuid::Uuid;
 
 struct FixedBackend;
@@ -117,4 +120,36 @@ async fn registry_invokes_agent_run_tool() {
     assert_eq!(response["answer"], "bounded answer");
     assert_eq!(executor.seen_requests()[0].model, "local/code");
     assert_eq!(executor.seen_requests()[0].context, vec!["repo://tree"]);
+}
+
+#[tokio::test]
+async fn registry_invokes_repo_index_tool_and_persists_embeddings() {
+    let store: Arc<dyn KnowledgeStore> = Arc::new(NeumannStore::new(Default::default()));
+    let provider = Arc::new(FixtureProvider::new("fixture-embed").with_embedding_dim(4));
+    let registry =
+        ToolRegistry::with_phase2_tools_and_provider(Box::new(FixedBackend), store.clone(), provider);
+
+    assert!(registry.has("repo.index"));
+
+    let tool = registry.get("repo.index").expect("repo index tool");
+    let response = tool
+        .call(json!({
+            "topic": "auth-risks",
+            "content": "a".repeat(700),
+            "source": "https://example.com/auth"
+        }))
+        .await
+        .expect("repo index call");
+
+    assert_eq!(response["chunks_created"], 2);
+
+    let stored = store
+        .query(SemanticQuery::Vector {
+            embedding: Arc::from([1.0_f32, 0.0, 0.0, 0.0]),
+            top_k: 10,
+            modality: None,
+        })
+        .await
+        .expect("query embeddings");
+    assert_eq!(stored.ids.len(), 2);
 }
