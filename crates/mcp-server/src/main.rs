@@ -23,6 +23,15 @@ use mcp_server::McpServerRuntime;
 use retrieval::DeterministicBackend;
 use storage_neumann::NeumannConfig;
 
+/// The set of tools exposed through MCP list_tools and callable via call_tool.
+/// Any tool registered in the runtime but absent from this list is intentionally hidden.
+const EXPOSED_TOOLS: &[&str] = &[
+    "repo.search",
+    "repo.read_symbol",
+    "ontology.list_classes",
+    "ontology.related_resources",
+];
+
 pub struct IrontologyMcpServer {
     runtime: McpServerRuntime,
 }
@@ -77,14 +86,7 @@ impl ServerHandler for IrontologyMcpServer {
         async move {
             let mut tools = Vec::new();
 
-            let tool_names = [
-                "repo.search",
-                "repo.index",
-                "repo.read_symbol",
-                "ontology.list_classes",
-                "ontology.related_resources",
-            ];
-            for name in &tool_names {
+            for name in EXPOSED_TOOLS {
                 if let Some(tool) = self.runtime.tools.get(name) {
                     let input_schema = match tool.input_schema() {
                         Value::Object(schema) => Arc::new(schema),
@@ -124,21 +126,28 @@ impl ServerHandler for IrontologyMcpServer {
             let tool_name = request.name.as_ref();
             let params = Value::Object(request.arguments.unwrap_or_default());
 
+            if !EXPOSED_TOOLS.contains(&tool_name) {
+                return Err(McpError::invalid_request(
+                    format!("tool {} not found", tool_name),
+                    None,
+                ));
+            }
+
             if let Some(tool) = self.runtime.tools.get(tool_name) {
                 match tool.call(params).await {
                     Ok(result) => Ok(CallToolResult::success(vec![Content::text(
                         result.to_string(),
                     )])),
-                    Err(e) => Ok(CallToolResult::success(vec![Content::text(format!(
-                        "Error: {}",
-                        e
-                    ))])),
+                    Err(e) => Err(McpError::internal_error(
+                        format!("tool {} failed: {}", tool_name, e),
+                        None,
+                    )),
                 }
             } else {
-                Ok(CallToolResult::success(vec![Content::text(format!(
-                    "Tool {} not found",
-                    tool_name
-                ))]))
+                Err(McpError::invalid_request(
+                    format!("tool {} not found", tool_name),
+                    None,
+                ))
             }
         }
     }
