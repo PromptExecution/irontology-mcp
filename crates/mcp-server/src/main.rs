@@ -127,16 +127,16 @@ impl ServerHandler for IrontologyMcpServer {
                     Ok(result) => Ok(CallToolResult::success(vec![Content::text(
                         result.to_string(),
                     )])),
-                    Err(e) => Ok(CallToolResult::success(vec![Content::text(format!(
-                        "Error: {}",
-                        e
-                    ))])),
+                    Err(e) => Err(McpError::internal_error(
+                        format!("tool {} failed: {}", tool_name, e),
+                        None,
+                    )),
                 }
             } else {
-                Ok(CallToolResult::success(vec![Content::text(format!(
-                    "Tool {} not found",
-                    tool_name
-                ))]))
+                Err(McpError::invalid_request(
+                    format!("tool {} not found", tool_name),
+                    None,
+                ))
             }
         }
     }
