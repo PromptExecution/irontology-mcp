@@ -10,7 +10,7 @@ use tempfile::tempdir;
 #[tokio::test]
 async fn neumann_store_contract_basics() {
     let dir = tempdir().expect("tempdir");
-    let store = NeumannStore::new(test_config(dir.path().join("basics")));
+    let store = NeumannStore::try_new(test_config(dir.path().join("basics"))).expect("open store");
 
     store
         .upsert_file(FileRecord {
@@ -86,7 +86,7 @@ async fn neumann_store_contract_basics() {
 #[tokio::test]
 async fn neumann_ingests_ontology_turtle_resources() {
     let dir = tempdir().expect("tempdir");
-    let store = NeumannStore::new(test_config(dir.path().join("ontology")));
+    let store = NeumannStore::try_new(test_config(dir.path().join("ontology"))).expect("open store");
     let naming = r#"@prefix ex: <https://example.org/pe/> .
 @prefix oa: <http://www.w3.org/ns/oa#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .

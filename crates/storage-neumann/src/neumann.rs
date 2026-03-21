@@ -203,14 +203,12 @@ pub struct NeumannStore {
 }
 
 impl NeumannStore {
-    pub fn new(config: NeumannConfig) -> Self {
-        let db = sled::open(resolve_data_path(&config)).expect("open neumann sled database");
-        let embeddings = db.open_tree("embeddings").expect("open embeddings tree");
-        let blobs = db.open_tree("blobs").expect("open blobs tree");
-        let semantic_triples = db
-            .open_tree("semantic_triples")
-            .expect("open semantic triples tree");
-        Self {
+    pub fn try_new(config: NeumannConfig) -> anyhow::Result<Self> {
+        let db = sled::open(resolve_data_path(&config))?;
+        let embeddings = db.open_tree("embeddings")?;
+        let blobs = db.open_tree("blobs")?;
+        let semantic_triples = db.open_tree("semantic_triples")?;
+        Ok(Self {
             config,
             db,
             embeddings,
@@ -219,7 +217,7 @@ impl NeumannStore {
             files: RwLock::new(HashMap::new()),
             facts: RwLock::new(Vec::new()),
             edges: RwLock::new(Vec::new()),
-        }
+        })
     }
 }
 
