@@ -235,7 +235,7 @@ impl KnowledgeStore for NeumannStore {
             .write()
             .expect("files")
             .insert(file.id.clone(), file);
-        self.db.flush()?;
+        self.db.flush_async().await?;
         Ok(())
     }
 
