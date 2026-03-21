@@ -42,6 +42,7 @@ impl IrontologyMcpServer {
         let config = NeumannConfig {
             endpoint: "http://localhost:7777".into(),
             namespace: "default".into(),
+            data_path: None,
         };
 
         let runtime = McpServerRuntime::start_phase2(backend, config).await?;
