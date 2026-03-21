@@ -5,10 +5,12 @@ use storage_neumann::{
     config::NeumannConfig, EmbeddingModality, EmbeddingRecord, FactRecord, FileRecord,
     KnowledgeStore, NeumannStore, SemanticQuery,
 };
+use tempfile::tempdir;
 
 #[tokio::test]
 async fn neumann_store_contract_basics() {
-    let store = NeumannStore::new(NeumannConfig::default());
+    let dir = tempdir().expect("tempdir");
+    let store = NeumannStore::new(test_config(dir.path().join("basics")));
 
     store
         .upsert_file(FileRecord {
@@ -83,7 +85,8 @@ async fn neumann_store_contract_basics() {
 
 #[tokio::test]
 async fn neumann_ingests_ontology_turtle_resources() {
-    let store = NeumannStore::new(NeumannConfig::default());
+    let dir = tempdir().expect("tempdir");
+    let store = NeumannStore::new(test_config(dir.path().join("ontology")));
     let naming = r#"@prefix ex: <https://example.org/pe/> .
 @prefix oa: <http://www.w3.org/ns/oa#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
@@ -147,4 +150,12 @@ ex:SemanticAnchor a rdfs:Class ;
         .await
         .expect("topic labels");
     assert_eq!(labels, vec!["Payment retries".to_string()]);
+}
+
+fn test_config(path: std::path::PathBuf) -> NeumannConfig {
+    NeumannConfig {
+        endpoint: "http://localhost:7777".to_string(),
+        namespace: "test".to_string(),
+        data_path: Some(path),
+    }
 }

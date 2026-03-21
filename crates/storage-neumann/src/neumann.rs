@@ -1,11 +1,13 @@
 use std::{
     cmp::Ordering,
     collections::HashMap,
+    path::PathBuf,
     sync::{Arc, RwLock},
 };
 
 use anyhow::Result;
 use async_trait::async_trait;
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use rio_api::{
     model::{Literal, Subject, Term},
     parser::TriplesParser,
@@ -71,12 +73,75 @@ pub struct EmbeddingRecord {
     pub semantic_weight: f32,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct StoredEmbeddingRecord {
+    id: String,
+    source_blob: String,
+    vector: Vec<f32>,
+    modality: EmbeddingModality,
+    semantic_weight: f32,
+}
+
+impl From<EmbeddingRecord> for StoredEmbeddingRecord {
+    fn from(value: EmbeddingRecord) -> Self {
+        Self {
+            id: value.id,
+            source_blob: value.source_blob,
+            vector: value.vector.as_ref().to_vec(),
+            modality: value.modality,
+            semantic_weight: value.semantic_weight,
+        }
+    }
+}
+
+impl From<StoredEmbeddingRecord> for EmbeddingRecord {
+    fn from(value: StoredEmbeddingRecord) -> Self {
+        Self {
+            id: value.id,
+            source_blob: value.source_blob,
+            vector: Arc::from(value.vector.into_boxed_slice()),
+            modality: value.modality,
+            semantic_weight: value.semantic_weight,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SemanticTriple {
     pub source: String,
     pub subject: String,
     pub predicate: String,
     pub object: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct StoredSemanticTriple {
+    source: String,
+    subject: String,
+    predicate: String,
+    object: String,
+}
+
+impl From<SemanticTriple> for StoredSemanticTriple {
+    fn from(value: SemanticTriple) -> Self {
+        Self {
+            source: value.source,
+            subject: value.subject,
+            predicate: value.predicate,
+            object: value.object,
+        }
+    }
+}
+
+impl From<StoredSemanticTriple> for SemanticTriple {
+    fn from(value: StoredSemanticTriple) -> Self {
+        Self {
+            source: value.source,
+            subject: value.subject,
+            predicate: value.predicate,
+            object: value.object,
+        }
+    }
 }
 
 pub enum SemanticQuery {
@@ -127,25 +192,33 @@ pub trait KnowledgeStore: Send + Sync {
 }
 
 pub struct NeumannStore {
-    _config: NeumannConfig,
+    config: NeumannConfig,
+    db: sled::Db,
+    embeddings: sled::Tree,
+    blobs: sled::Tree,
+    semantic_triples: sled::Tree,
     files: RwLock<HashMap<String, FileRecord>>,
-    embeddings: RwLock<HashMap<String, EmbeddingRecord>>,
-    blobs: RwLock<HashMap<String, bool>>,
     facts: RwLock<Vec<FactRecord>>,
     edges: RwLock<Vec<EdgeRecord>>,
-    semantic_triples: RwLock<Vec<SemanticTriple>>,
 }
 
 impl NeumannStore {
     pub fn new(config: NeumannConfig) -> Self {
+        let db = sled::open(resolve_data_path(&config)).expect("open neumann sled database");
+        let embeddings = db.open_tree("embeddings").expect("open embeddings tree");
+        let blobs = db.open_tree("blobs").expect("open blobs tree");
+        let semantic_triples = db
+            .open_tree("semantic_triples")
+            .expect("open semantic triples tree");
         Self {
-            _config: config,
+            config,
+            db,
+            embeddings,
+            blobs,
+            semantic_triples,
             files: RwLock::new(HashMap::new()),
-            embeddings: RwLock::new(HashMap::new()),
-            blobs: RwLock::new(HashMap::new()),
             facts: RwLock::new(Vec::new()),
             edges: RwLock::new(Vec::new()),
-            semantic_triples: RwLock::new(Vec::new()),
         }
     }
 }
@@ -153,18 +226,16 @@ impl NeumannStore {
 #[async_trait]
 impl KnowledgeStore for NeumannStore {
     async fn has_blob(&self, blob_id: &str) -> Result<bool> {
-        Ok(self.blobs.read().expect("blobs").contains_key(blob_id))
+        Ok(self.blobs.contains_key(blob_id.as_bytes())?)
     }
 
     async fn upsert_file(&self, file: FileRecord) -> Result<()> {
-        self.blobs
-            .write()
-            .expect("blobs")
-            .insert(file.blob.clone(), true);
+        self.blobs.insert(file.blob.as_bytes(), &[1])?;
         self.files
             .write()
             .expect("files")
             .insert(file.id.clone(), file);
+        self.db.flush()?;
         Ok(())
     }
 
@@ -199,12 +270,15 @@ impl KnowledgeStore for NeumannStore {
     }
 
     async fn upsert_embeddings(&self, embeddings: Vec<EmbeddingRecord>) -> Result<()> {
-        let mut blobs = self.blobs.write().expect("blobs");
-        let mut map = self.embeddings.write().expect("embeddings");
         for emb in embeddings {
-            blobs.insert(emb.source_blob.clone(), true);
-            map.insert(emb.id.clone(), emb);
+            self.blobs.insert(emb.source_blob.as_bytes(), &[1])?;
+            let stored = StoredEmbeddingRecord::from(emb);
+            self.embeddings.insert(
+                stored.id.as_bytes(),
+                serde_json::to_vec(&stored)?,
+            )?;
         }
+        self.db.flush()?;
         Ok(())
     }
 
@@ -220,22 +294,28 @@ impl KnowledgeStore for NeumannStore {
             Ok(()) as Result<(), rio_turtle::TurtleError>
         })?;
 
-        self.semantic_triples
-            .write()
-            .expect("semantic_triples")
-            .extend(parsed);
+        for triple in parsed {
+            let stored = StoredSemanticTriple::from(triple);
+            self.semantic_triples.insert(
+                triple_key(&stored.subject, &stored.predicate, &stored.object),
+                serde_json::to_vec(&stored)?,
+            )?;
+        }
+        self.db.flush()?;
         Ok(())
     }
 
     async fn related_objects(&self, subject: &str, predicate: &str) -> Result<Vec<String>> {
-        Ok(self
+        let mut out = Vec::new();
+        for item in self
             .semantic_triples
-            .read()
-            .expect("semantic_triples")
-            .iter()
-            .filter(|triple| triple.subject == subject && triple.predicate == predicate)
-            .map(|triple| triple.object.clone())
-            .collect())
+            .scan_prefix(triple_prefix(subject, predicate))
+        {
+            let (_, value) = item?;
+            let triple: StoredSemanticTriple = serde_json::from_slice(&value)?;
+            out.push(triple.object);
+        }
+        Ok(out)
     }
 
     async fn query(&self, q: SemanticQuery) -> Result<QueryResult> {
@@ -247,9 +327,11 @@ impl KnowledgeStore for NeumannStore {
             } => {
                 let mut scored: Vec<(String, f32)> = self
                     .embeddings
-                    .read()
-                    .expect("embeddings")
+                    .iter()
                     .values()
+                    .filter_map(|value| value.ok())
+                    .filter_map(|value| serde_json::from_slice::<StoredEmbeddingRecord>(&value).ok())
+                    .map(EmbeddingRecord::from)
                     .filter(|record| match modality {
                         Some(candidate) => candidate == record.modality,
                         None => true,
@@ -324,9 +406,23 @@ impl KnowledgeStore for NeumannStore {
     async fn health(&self) -> Result<StoreHealth> {
         Ok(StoreHealth {
             healthy: true,
-            message: "ready".to_string(),
+            message: format!(
+                "ready: {}",
+                resolve_data_path(&self.config).display()
+            ),
         })
     }
+}
+
+fn resolve_data_path(config: &NeumannConfig) -> PathBuf {
+    config.data_path.clone().unwrap_or_else(|| {
+        let home = std::env::var_os("HOME")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("."));
+        home.join(".b00t")
+            .join("neumann")
+            .join(&config.namespace)
+    })
 }
 
 fn cosine(a: &[f32], b: &[f32]) -> f32 {
@@ -370,4 +466,27 @@ fn literal_to_string(literal: &Literal<'_>) -> String {
         Literal::LanguageTaggedString { value, .. } => value.to_string(),
         Literal::Typed { value, datatype } => format!("{value}^^{}", datatype.iri),
     }
+}
+
+fn triple_prefix(subject: &str, predicate: &str) -> Vec<u8> {
+    format!(
+        "triple::{}::{}::",
+        encode_key_part(subject),
+        encode_key_part(predicate)
+    )
+    .into_bytes()
+}
+
+fn triple_key(subject: &str, predicate: &str, object: &str) -> Vec<u8> {
+    format!(
+        "triple::{}::{}::{}",
+        encode_key_part(subject),
+        encode_key_part(predicate),
+        encode_key_part(object)
+    )
+    .into_bytes()
+}
+
+fn encode_key_part(value: &str) -> String {
+    URL_SAFE_NO_PAD.encode(value)
 }
