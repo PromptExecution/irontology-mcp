@@ -21,8 +21,10 @@ use storage_neumann::{config::NeumannConfig, KnowledgeStore, NeumannStore};
 use crate::tools::{
     agent_forward_mcp::AgentForwardMcpTool, agent_run::AgentRunTool,
     ontology_list_classes::OntologyListClassesTool,
-    ontology_related_resources::OntologyRelatedResourcesTool, repo_read_symbol::RepoReadSymbolTool,
-    repo_index::RepoIndexTool, repo_search::RepoSearchTool,
+    ontology_related_resources::OntologyRelatedResourcesTool,
+    repo_index::RepoIndexTool,
+    repo_read_symbol::RepoReadSymbolTool,
+    repo_search::RepoSearchTool,
 };
 
 #[async_trait]

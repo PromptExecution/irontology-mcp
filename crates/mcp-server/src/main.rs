@@ -19,8 +19,8 @@ use serde_json::Value;
 use std::sync::Arc;
 use tokio::signal::ctrl_c;
 
-use mcp_server::{McpServerRuntime, Phase2RuntimeConfig};
-use retrieval::StoreBackedBackend;
+use mcp_server::McpServerRuntime;
+use retrieval::{DeterministicBackend, NeumannBackend};
 use storage_neumann::{NeumannConfig, NeumannStore};
 
 /// The set of tools exposed through MCP list_tools and callable via call_tool.
@@ -38,25 +38,34 @@ pub struct IrontologyMcpServer {
 
 impl IrontologyMcpServer {
     pub async fn new() -> Result<Self> {
-        let neumann = NeumannConfig {
+        // 🤓 data_path from env: NEUMANN_DATA_DIR (e.g. /home/user/.b00t/neumann/default)
+        // Note: ~ is not expanded automatically; set an absolute path in the env var.
+        let data_path = std::env::var("NEUMANN_DATA_DIR").ok().map(Into::into);
+        let config = NeumannConfig {
             endpoint: "http://localhost:7777".into(),
             namespace: "default".into(),
-            data_path: None,
+            data_path,
         };
-        let store = Arc::new(NeumannStore::new(neumann.clone()));
-        let backend = Box::new(StoreBackedBackend::from_store(store.as_ref()));
-        let runtime = McpServerRuntime::start_phase2_with_store(
-            backend,
-            store.clone(),
-            Phase2RuntimeConfig::new(neumann),
-        )
-        .await?;
+
+        // 🤓 NEUMANN_BACKEND=neumann → real embeddings (requires EMBEDDING_ENDPOINT)
+        //      default → DeterministicBackend (synthetic, no external deps)
+        let use_neumann = std::env::var("NEUMANN_BACKEND")
+            .map(|v| v == "neumann")
+            .unwrap_or(false);
+
+        let runtime = if use_neumann {
+            let store = Arc::new(NeumannStore::new(config.clone()));
+            let backend = Box::new(NeumannBackend::new(store));
+            McpServerRuntime::start_phase2(backend, config).await?
+        } else {
+            let backend = Box::new(DeterministicBackend);
+            McpServerRuntime::start_phase2(backend, config).await?
+        };
         eprintln!("✅ irontology-mcp: runtime initialized");
         Ok(Self { runtime })
     }
 }
 
-#[async_trait::async_trait]
 impl ServerHandler for IrontologyMcpServer {
     fn ping(
         &self,

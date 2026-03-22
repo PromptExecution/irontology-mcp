@@ -1,6 +1,26 @@
+//! TDD: persistence survives NeumannStore restart
+
 use tempfile::tempdir;
 
 use storage_neumann::{config::NeumannConfig, KnowledgeStore, NeumannStore};
+
+#[tokio::test]
+async fn in_memory_still_works_without_data_path() {
+    let config = NeumannConfig::default(); // data_path = None
+    let store = NeumannStore::new(config);
+    store
+        .ingest_turtle(
+            "test-source",
+            r#"<http://ex.org/x> <http://ex.org/q> <http://ex.org/y> ."#,
+        )
+        .await
+        .unwrap();
+    let objects = store
+        .related_objects("http://ex.org/x", "http://ex.org/q")
+        .await
+        .unwrap();
+    assert_eq!(objects, vec!["http://ex.org/y"]);
+}
 
 #[tokio::test]
 async fn turtle_ingest_persists_across_restart() {
