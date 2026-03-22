@@ -31,7 +31,7 @@ async fn transport_forwarder_posts_json_rpc_over_http() {
 
     let seen = state.seen.lock().expect("seen");
     assert_eq!(seen[0]["method"], "tools/call");
-    assert_eq!(seen[0]["params"]["name"], "agent.forward_mcp");
+    assert_eq!(seen[0]["params"]["name"], "agent.execute_delegated_task");
     assert_eq!(
         seen[0]["params"]["arguments"]["task"],
         "Summarize auth module risks"

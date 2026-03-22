@@ -10,6 +10,8 @@ serde.workspace = true
 serde_json.workspace = true
 storage-neumann = { path = "../storage-neumann" }
 tokio = { workspace = true, features = ["rt-multi-thread"] }
+futures.workspace = true
+provider-api = { path = "../provider-api" }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt"] }

@@ -5,6 +5,7 @@ use mcp_server::{JsonRpcRequest, JsonRpcResponse, McpServerRuntime};
 use retrieval::{RankedResult, SearchBackend};
 use serde_json::{json, Value};
 use storage_neumann::config::NeumannConfig;
+use tempfile::tempdir;
 use tokio::io::{duplex, AsyncBufReadExt, AsyncWriteExt, BufReader};
 
 struct FixedBackend;
@@ -32,8 +33,9 @@ impl SearchBackend for FixedBackend {
 
 #[tokio::test]
 async fn stdio_and_http_transports_match_for_tools_list() {
+    let dir = tempdir().expect("tempdir");
     let runtime = Arc::new(
-        McpServerRuntime::start_phase2(Box::new(FixedBackend), NeumannConfig::default())
+        McpServerRuntime::start_phase2(Box::new(FixedBackend), test_config(dir.path().join("list")))
             .await
             .expect("start runtime"),
     );
@@ -54,8 +56,9 @@ async fn stdio_and_http_transports_match_for_tools_list() {
 
 #[tokio::test]
 async fn stdio_and_http_transports_match_for_tool_calls() {
+    let dir = tempdir().expect("tempdir");
     let runtime = Arc::new(
-        McpServerRuntime::start_phase2(Box::new(FixedBackend), NeumannConfig::default())
+        McpServerRuntime::start_phase2(Box::new(FixedBackend), test_config(dir.path().join("call")))
             .await
             .expect("start runtime"),
     );
@@ -139,4 +142,12 @@ async fn call_over_http(
 
     server.abort();
     response
+}
+
+fn test_config(path: std::path::PathBuf) -> NeumannConfig {
+    NeumannConfig {
+        endpoint: "http://localhost:7777".to_string(),
+        namespace: "test".to_string(),
+        data_path: Some(path),
+    }
 }

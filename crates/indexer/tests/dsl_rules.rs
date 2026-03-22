@@ -59,6 +59,10 @@ impl KnowledgeStore for StoreProbe {
         Ok(())
     }
 
+    async fn upsert_symbols(&self, _symbols: Vec<storage_neumann::SymbolRecord>) -> Result<()> {
+        Ok(())
+    }
+
     async fn upsert_facts(&self, _facts: Vec<FactRecord>) -> Result<()> {
         Ok(())
     }
@@ -77,6 +81,10 @@ impl KnowledgeStore for StoreProbe {
     }
 
     async fn related_objects(&self, _subject: &str, _predicate: &str) -> Result<Vec<String>> {
+        Ok(vec![])
+    }
+
+    async fn list_classes(&self) -> Result<Vec<String>> {
         Ok(vec![])
     }
 

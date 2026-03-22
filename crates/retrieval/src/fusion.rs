@@ -64,6 +64,7 @@ pub fn fusion_search(
         b.score
             .partial_cmp(&a.score)
             .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| a.id.cmp(&b.id))
     });
     out.truncate(top_k);
     Ok(out)

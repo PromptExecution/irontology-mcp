@@ -23,6 +23,11 @@ use crate::Tool;
 const CHUNK_SIZE: usize = 512;
 const CHUNK_OVERLAP: usize = 64;
 
+/// Maximum allowed content size in bytes (512 KiB).
+pub const MAX_CONTENT_BYTES: usize = 512 * 1024;
+/// Maximum number of chunks produced from a single ingestion call.
+pub const MAX_CHUNKS: usize = 256;
+
 pub struct RepoIndexTool {
     store: Arc<dyn KnowledgeStore>,
     embedder: Arc<EmbeddingClient>,
@@ -41,18 +46,25 @@ impl Tool for RepoIndexTool {
     }
 
     fn description(&self) -> &str {
-        "Index text content into NeumannStore with embeddings. Used by b00t grok digest/learn."
+        "Index content into the knowledge store (chunk, embed, upsert). \
+         Content must not exceed 512 KiB and must produce no more than 256 chunks."
     }
 
     fn input_schema(&self) -> Value {
         json!({
             "type": "object",
             "properties": {
-                "content": { "type": "string", "description": "Text to index" },
-                "source":  { "type": "string", "description": "Source identifier (URL, file path, or label)" },
-                "topic":   { "type": "string", "description": "Optional semantic category/topic" }
+                "topic": { "type": "string" },
+                "content": {
+                    "type": "string",
+                    "description": "Text to index. Maximum 524288 bytes (512 KiB)."
+                },
+                "source": {
+                    "type": "string",
+                    "description": "URL or file path"
+                }
             },
-            "required": ["content", "source"]
+            "required": ["topic", "content"]
         })
     }
 

@@ -75,6 +75,10 @@ impl KnowledgeStore for StoreProbe {
         Ok(())
     }
 
+    async fn upsert_symbols(&self, _symbols: Vec<storage_neumann::SymbolRecord>) -> Result<()> {
+        Ok(())
+    }
+
     async fn upsert_facts(&self, facts: Vec<FactRecord>) -> Result<()> {
         self.facts.lock().expect("lock").extend(facts);
         Ok(())
@@ -95,6 +99,10 @@ impl KnowledgeStore for StoreProbe {
     }
 
     async fn related_objects(&self, _subject: &str, _predicate: &str) -> Result<Vec<String>> {
+        Ok(vec![])
+    }
+
+    async fn list_classes(&self) -> Result<Vec<String>> {
         Ok(vec![])
     }
 
@@ -145,9 +153,9 @@ impl ModelProvider for ProviderProbe {
         })
     }
 
-fn model_id(&self) -> &str {
-    "probe"
-}
+    fn model_id(&self) -> &str {
+        "probe"
+    }
 }
 
 fn sample_extraction(text: &str, has_symbols: bool) -> Extraction {
@@ -221,6 +229,89 @@ async fn changed_file_upserts_code_symbol_embeddings() {
     assert!(rows
         .iter()
         .all(|r| r.modality == EmbeddingModality::CodeSymbol));
+}
+
+#[tokio::test]
+async fn changed_file_persists_symbol_graph_and_symbol_embeddings() {
+    let seen = Arc::new(Mutex::new(Vec::<EmbeddingRecord>::new()));
+    let facts = Arc::new(Mutex::new(Vec::<FactRecord>::new()));
+    let edges = Arc::new(Mutex::new(Vec::<EdgeRecord>::new()));
+    let calls = Arc::new(Mutex::new(0_usize));
+
+    let result = index_file(
+        Path::new("src/lib.rs"),
+        &FakeLedger {
+            blob: "blob-symbols",
+        },
+        &MatchAll,
+        &StubHandler {
+            extraction: sample_extraction(
+                r#"
+use std::fmt::Debug;
+
+fn alpha() {
+    beta();
+}
+
+fn beta() {}
+"#,
+                true,
+            ),
+        },
+        &StoreProbe {
+            seen: seen.clone(),
+            facts: facts.clone(),
+            edges: edges.clone(),
+            existing: false,
+        },
+        &ProviderProbe {
+            calls: calls.clone(),
+        },
+    )
+    .await
+    .expect("index");
+
+    assert!(result);
+    assert_eq!(*calls.lock().expect("lock"), 1);
+
+    let embeddings = seen.lock().expect("lock");
+    assert_eq!(embeddings.len(), 2);
+    assert!(embeddings
+        .iter()
+        .all(|record| record.modality == EmbeddingModality::CodeSymbol));
+    assert!(embeddings
+        .iter()
+        .any(|record| record.id == "git:blob:blob-symbols:alpha"));
+    assert!(embeddings
+        .iter()
+        .any(|record| record.id == "git:blob:blob-symbols:beta"));
+
+    let facts = facts.lock().expect("facts");
+    assert!(facts.iter().any(|fact| {
+        fact.subject == "git:blob:blob-symbols:alpha"
+            && fact.predicate == "symbol_kind"
+            && fact.object == serde_json::json!("Function")
+    }));
+    assert!(facts.iter().any(|fact| {
+        fact.subject == "git:blob:blob-symbols:beta" && fact.predicate == "symbol_span_start_line"
+    }));
+
+    let edges = edges.lock().expect("edges");
+    assert!(edges.iter().any(|edge| {
+        edge.from == "file:git:blob:blob-symbols"
+            && edge.to == "git:blob:blob-symbols:alpha"
+            && edge.kind == indexer::EdgeKind::Defines
+    }));
+    assert!(edges.iter().any(|edge| {
+        edge.from == "git:blob:blob-symbols:alpha"
+            && edge.to == "git:blob:blob-symbols:beta"
+            && edge.kind == indexer::EdgeKind::Calls
+    }));
+    assert!(edges.iter().any(|edge| {
+        edge.from == "file:git:blob:blob-symbols"
+            && edge.to == "git:blob:blob-symbols:std::fmt::Debug"
+            && edge.kind == indexer::EdgeKind::DependsOn
+    }));
 }
 
 #[tokio::test]
@@ -307,16 +398,15 @@ async fn semantic_enrichment_is_persisted_as_facts_and_edges() {
             tags: BTreeMap::new(),
             ontology_refs: vec![],
         },
-        &FakeLedger { blob: "blob-semantic" },
+        &FakeLedger {
+            blob: "blob-semantic",
+        },
         &MatchAll,
         &StubHandler {
             extraction: Extraction {
                 text: "standing data has hidden dependencies".to_string(),
                 has_symbols: false,
-                fields: BTreeMap::from([(
-                    "vendor".to_string(),
-                    serde_json::json!("Acme Finance"),
-                )]),
+                fields: BTreeMap::from([("vendor".to_string(), serde_json::json!("Acme Finance"))]),
                 class: Some("doc:MeetingNotes".to_string()),
                 shape: Some("shape:MeetingNotes".to_string()),
                 claims: vec![Claim {
