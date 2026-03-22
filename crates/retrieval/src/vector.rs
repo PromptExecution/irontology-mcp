@@ -1,17 +1,16 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use storage_neumann::{KnowledgeStore, NeumannStore, SemanticQuery};
+use storage_neumann::{NeumannStore, SemanticQuery};
 
 use crate::embed::EmbeddingClient;
 use crate::fusion::RankedResult;
 use crate::store_backend::DeterministicBackend;
-use crate::SearchBackend;
 
 /// Real VectorBackend: embeds query, cosine-searches NeumannStore.
 ///
-/// `search_vector` uses `block_in_place` to bridge sync SearchBackend trait → async embed.
-/// Requires tokio multi-thread runtime (mcp-server already uses rt-multi-thread).
+/// `search_vector_sync` uses `block_in_place` to bridge sync SearchBackend trait → async embed.
+/// Returns an error if called outside a Tokio multi-thread runtime.
 pub struct VectorBackend {
     store: Arc<NeumannStore>,
     embedder: Arc<EmbeddingClient>,
@@ -26,12 +25,14 @@ impl VectorBackend {
 /// SearchBackend impl for VectorBackend — bridges sync trait to async embedding call
 impl VectorBackend {
     pub fn search_vector_sync(&self, query: &str, top_k: usize) -> Result<Vec<RankedResult>> {
+        let handle = tokio::runtime::Handle::try_current()
+            .map_err(|_| anyhow::anyhow!("search_vector_sync requires a Tokio multi-thread runtime"))?;
         let store = self.store.clone();
         let embedder = self.embedder.clone();
         let query = query.to_string();
 
         tokio::task::block_in_place(move || {
-            tokio::runtime::Handle::current().block_on(async move {
+            handle.block_on(async move {
                 let embedding: Arc<[f32]> = embedder.embed(&query).await?.into();
                 let result = store
                     .query(SemanticQuery::Vector {
