@@ -30,9 +30,12 @@ pub struct IrontologyMcpServer {
 impl IrontologyMcpServer {
     pub async fn new() -> Result<Self> {
         let backend = Box::new(DeterministicBackend);
+        // 🤓 data_dir from env: NEUMANN_DATA_DIR (e.g. ~/.b00t/neumann/default)
+        let data_dir = std::env::var("NEUMANN_DATA_DIR").ok();
         let config = NeumannConfig {
             endpoint: "http://localhost:7777".into(),
             namespace: "default".into(),
+            data_dir,
         };
 
         let runtime = McpServerRuntime::start_phase2(backend, config).await?;

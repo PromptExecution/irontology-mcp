@@ -71,7 +71,41 @@ pub struct EmbeddingRecord {
     pub semantic_weight: f32,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Serde-compatible form of EmbeddingRecord (Vec<f32> instead of Arc<[f32]>)
+#[derive(Serialize, Deserialize)]
+struct StoredEmbedding {
+    id: String,
+    source_blob: String,
+    vector: Vec<f32>,
+    modality: EmbeddingModality,
+    semantic_weight: f32,
+}
+
+impl From<&EmbeddingRecord> for StoredEmbedding {
+    fn from(r: &EmbeddingRecord) -> Self {
+        Self {
+            id: r.id.clone(),
+            source_blob: r.source_blob.clone(),
+            vector: r.vector.to_vec(),
+            modality: r.modality,
+            semantic_weight: r.semantic_weight,
+        }
+    }
+}
+
+impl From<StoredEmbedding> for EmbeddingRecord {
+    fn from(s: StoredEmbedding) -> Self {
+        Self {
+            id: s.id,
+            source_blob: s.source_blob,
+            vector: s.vector.into(),
+            modality: s.modality,
+            semantic_weight: s.semantic_weight,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SemanticTriple {
     pub source: String,
     pub subject: String,
@@ -134,11 +168,23 @@ pub struct NeumannStore {
     facts: RwLock<Vec<FactRecord>>,
     edges: RwLock<Vec<EdgeRecord>>,
     semantic_triples: RwLock<Vec<SemanticTriple>>,
+    // 🤓 sled: Some(db) if data_dir was set — write-through persistence
+    db: Option<Arc<sled::Db>>,
 }
 
 impl NeumannStore {
     pub fn new(config: NeumannConfig) -> Self {
-        Self {
+        let db = config.data_dir.as_ref().and_then(|dir| {
+            sled::open(dir)
+                .map(Arc::new)
+                .map_err(|e| {
+                    eprintln!("⚠️ NeumannStore: failed to open sled at {dir}: {e}");
+                    e
+                })
+                .ok()
+        });
+
+        let mut store = Self {
             _config: config,
             files: RwLock::new(HashMap::new()),
             embeddings: RwLock::new(HashMap::new()),
@@ -146,7 +192,88 @@ impl NeumannStore {
             facts: RwLock::new(Vec::new()),
             edges: RwLock::new(Vec::new()),
             semantic_triples: RwLock::new(Vec::new()),
+            db,
+        };
+
+        // Restore in-memory state from sled if available
+        if store.db.is_some() {
+            if let Err(e) = store.restore_from_sled() {
+                eprintln!("⚠️ NeumannStore: restore failed: {e}");
+            }
         }
+
+        store
+    }
+
+    fn restore_from_sled(&mut self) -> Result<()> {
+        let db = self.db.as_ref().expect("db");
+
+        // Restore semantic triples
+        if let Ok(tree) = db.open_tree("triples") {
+            let mut triples = self.semantic_triples.write().expect("triples");
+            for item in tree.iter() {
+                if let Ok((_, v)) = item {
+                    if let Ok(triple) = serde_json::from_slice::<SemanticTriple>(&v) {
+                        triples.push(triple);
+                    }
+                }
+            }
+        }
+
+        // Restore files
+        if let Ok(tree) = db.open_tree("files") {
+            let mut files = self.files.write().expect("files");
+            let mut blobs = self.blobs.write().expect("blobs");
+            for item in tree.iter() {
+                if let Ok((_, v)) = item {
+                    if let Ok(file) = serde_json::from_slice::<FileRecord>(&v) {
+                        blobs.insert(file.blob.clone(), true);
+                        files.insert(file.id.clone(), file);
+                    }
+                }
+            }
+        }
+
+        // Restore facts
+        if let Ok(tree) = db.open_tree("facts") {
+            let mut facts = self.facts.write().expect("facts");
+            for item in tree.iter() {
+                if let Ok((_, v)) = item {
+                    if let Ok(fact) = serde_json::from_slice::<FactRecord>(&v) {
+                        facts.push(fact);
+                    }
+                }
+            }
+        }
+
+        // Restore edges
+        if let Ok(tree) = db.open_tree("edges") {
+            let mut edges = self.edges.write().expect("edges");
+            for item in tree.iter() {
+                if let Ok((_, v)) = item {
+                    if let Ok(edge) = serde_json::from_slice::<EdgeRecord>(&v) {
+                        edges.push(edge);
+                    }
+                }
+            }
+        }
+
+        // Restore embeddings
+        if let Ok(tree) = db.open_tree("embeddings") {
+            let mut embeddings = self.embeddings.write().expect("embeddings");
+            let mut blobs = self.blobs.write().expect("blobs");
+            for item in tree.iter() {
+                if let Ok((_, v)) = item {
+                    if let Ok(stored) = serde_json::from_slice::<StoredEmbedding>(&v) {
+                        blobs.insert(stored.source_blob.clone(), true);
+                        let record: EmbeddingRecord = stored.into();
+                        embeddings.insert(record.id.clone(), record);
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -157,6 +284,10 @@ impl KnowledgeStore for NeumannStore {
     }
 
     async fn upsert_file(&self, file: FileRecord) -> Result<()> {
+        if let Some(db) = &self.db {
+            let tree = db.open_tree("files")?;
+            tree.insert(file.id.as_bytes(), serde_json::to_vec(&file)?)?;
+        }
         self.blobs
             .write()
             .expect("blobs")
@@ -176,6 +307,11 @@ impl KnowledgeStore for NeumannStore {
                     && candidate.predicate == fact.predicate
                     && candidate.object == fact.object
             }) {
+                if let Some(db) = &self.db {
+                    let tree = db.open_tree("facts")?;
+                    let key = format!("{}::{}::{}", fact.subject, fact.predicate, stored.len());
+                    tree.insert(key.as_bytes(), serde_json::to_vec(&fact)?)?;
+                }
                 stored.push(fact);
             }
         }
@@ -191,7 +327,17 @@ impl KnowledgeStore for NeumannStore {
                     && candidate.kind == edge.kind
             }) {
                 existing.weight = edge.weight;
+                if let Some(db) = &self.db {
+                    let tree = db.open_tree("edges")?;
+                    let key = format!("{}::{}::{:?}", edge.from, edge.to, edge.kind);
+                    tree.insert(key.as_bytes(), serde_json::to_vec(existing)?)?;
+                }
             } else {
+                if let Some(db) = &self.db {
+                    let tree = db.open_tree("edges")?;
+                    let key = format!("{}::{}::{:?}", edge.from, edge.to, edge.kind);
+                    tree.insert(key.as_bytes(), serde_json::to_vec(&edge)?)?;
+                }
                 stored.push(edge);
             }
         }
@@ -203,6 +349,11 @@ impl KnowledgeStore for NeumannStore {
         let mut map = self.embeddings.write().expect("embeddings");
         for emb in embeddings {
             blobs.insert(emb.source_blob.clone(), true);
+            if let Some(db) = &self.db {
+                let tree = db.open_tree("embeddings")?;
+                let stored = StoredEmbedding::from(&emb);
+                tree.insert(emb.id.as_bytes(), serde_json::to_vec(&stored)?)?;
+            }
             map.insert(emb.id.clone(), emb);
         }
         Ok(())
@@ -219,6 +370,17 @@ impl KnowledgeStore for NeumannStore {
             });
             Ok(()) as Result<(), rio_turtle::TurtleError>
         })?;
+
+        if let Some(db) = &self.db {
+            let tree = db.open_tree("triples")?;
+            for triple in &parsed {
+                let key = format!(
+                    "{}::{}::{}::{}",
+                    triple.source, triple.subject, triple.predicate, triple.object
+                );
+                tree.insert(key.as_bytes(), serde_json::to_vec(triple)?)?;
+            }
+        }
 
         self.semantic_triples
             .write()
@@ -322,9 +484,14 @@ impl KnowledgeStore for NeumannStore {
     }
 
     async fn health(&self) -> Result<StoreHealth> {
+        let persistent = self.db.is_some();
         Ok(StoreHealth {
             healthy: true,
-            message: "ready".to_string(),
+            message: if persistent {
+                "ready (persistent)".to_string()
+            } else {
+                "ready (in-memory)".to_string()
+            },
         })
     }
 }

@@ -76,6 +76,7 @@ impl From<NeumannSettings> for NeumannConfig {
         Self {
             endpoint: value.endpoint,
             namespace: value.namespace,
+            data_dir: None,
         }
     }
 }
