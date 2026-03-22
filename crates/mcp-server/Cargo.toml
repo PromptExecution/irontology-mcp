@@ -28,5 +28,5 @@ storage-neumann = { path = "../storage-neumann" }
 provider-test = { path = "../provider-test" }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 tempfile = "3"
-tokio = { workspace = true, features = ["fs", "macros", "rt-multi-thread", "time"] }
+tokio = { version = "1", features = ["fs", "macros", "rt-multi-thread", "time"] }
 uuid = { version = "1", features = ["v4"] }
