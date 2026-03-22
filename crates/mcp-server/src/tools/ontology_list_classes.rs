@@ -1,9 +1,20 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use serde_json::{json, Value};
+use storage_neumann::KnowledgeStore;
 
 use crate::Tool;
 
-pub struct OntologyListClassesTool;
+pub struct OntologyListClassesTool {
+    store: Arc<dyn KnowledgeStore>,
+}
+
+impl OntologyListClassesTool {
+    pub fn new(store: Arc<dyn KnowledgeStore>) -> Self {
+        Self { store }
+    }
+}
 
 #[async_trait]
 impl Tool for OntologyListClassesTool {
@@ -23,6 +34,7 @@ impl Tool for OntologyListClassesTool {
     }
 
     async fn call(&self, _params: Value) -> anyhow::Result<Value> {
-        Ok(crate::resources::ontology::list_classes())
+        let classes = self.store.list_classes().await?;
+        Ok(json!({ "classes": classes }))
     }
 }

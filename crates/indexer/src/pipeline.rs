@@ -2,12 +2,20 @@ use std::{collections::BTreeMap, path::Path};
 
 use anyhow::Result;
 use async_trait::async_trait;
+use codegraph::{
+    extractors::{extract as extract_symbol_graph, Language},
+    EdgeKind as CodeEdgeKind, SymbolGraph, SymbolKind, SymbolNode,
+};
 use domain::{Claim, Relation};
 use provider_api::{EmbedRequest, ModelProvider};
 use serde_json::json;
-use storage_neumann::{EdgeKind, EdgeRecord, EmbeddingRecord, FactRecord, FileRecord, KnowledgeStore};
+use storage_neumann::{
+    EdgeKind, EdgeRecord, EmbeddingRecord, FactRecord, FileRecord, KnowledgeStore, SymbolRecord,
+};
 
 use crate::{chunking::chunk_text, embedding::Modality};
+
+const SYNTHETIC_MODULE_NAME: &str = "__module__";
 
 #[derive(Debug, Clone)]
 pub struct IntakeFile {
@@ -111,10 +119,6 @@ pub async fn index_intake_file(
     }
 
     let extraction = handler.extract(&intake).await?;
-    let chunks = chunk_text(&extraction.text, 512);
-    if chunks.is_empty() {
-        return Ok(false);
-    }
 
     let file_id = format!("file:git:blob:{blob_id}");
     let effective_class = intake.class.clone().or_else(|| extraction.class.clone());
@@ -245,6 +249,35 @@ pub async fn index_intake_file(
             }),
         });
     }
+
+    let symbol_graph =
+        extract_symbol_graph_for_intake(&intake.extension, &blob_id, &extraction.text);
+    let symbol_nodes = if let Some(graph) = symbol_graph.as_ref() {
+        persist_symbol_graph(&file_id, &intake.path, &blob_id, &extraction.text, graph, store)
+            .await?
+    } else {
+        Vec::new()
+    };
+
+    let (embedding_inputs, embedding_modality) = if !symbol_nodes.is_empty() {
+        (
+            symbol_nodes
+                .iter()
+                .map(|node| symbol_text_for_embedding(&extraction.text, node))
+                .collect::<Vec<_>>(),
+            Modality::CodeSymbol,
+        )
+    } else {
+        let chunks = chunk_text(&extraction.text, 512);
+        if chunks.is_empty() {
+            return Ok(false);
+        }
+        (
+            chunks,
+            fallback_modality(&intake.extension, extraction.has_symbols),
+        )
+    };
+
     store.upsert_facts(facts).await?;
     if !edges.is_empty() {
         store.upsert_edges(edges).await?;
@@ -253,21 +286,30 @@ pub async fn index_intake_file(
     let embeddings = provider
         .embed(EmbedRequest {
             model: provider.model_id().to_string(),
-            inputs: chunks,
+            inputs: embedding_inputs,
             batch_size: 32,
         })
         .await?;
     let mut records = Vec::new();
+    if !symbol_nodes.is_empty() {
+        for (symbol, vector) in symbol_nodes.into_iter().zip(embeddings.vectors.into_iter()) {
+            records.push(EmbeddingRecord {
+                id: symbol.id.to_string(),
+                source_blob: blob_id.clone(),
+                vector,
+                modality: Modality::CodeSymbol,
+                semantic_weight: 1.0,
+            });
+        }
+        store.upsert_embeddings(records).await?;
+        return Ok(true);
+    }
     for (index, vector) in embeddings.vectors.into_iter().enumerate() {
         records.push(EmbeddingRecord {
             id: format!("{file_id}#chunk-{index}"),
             source_blob: blob_id.clone(),
             vector,
-            modality: if extraction.has_symbols {
-                Modality::CodeSymbol
-            } else {
-                Modality::DocChunk
-            },
+            modality: embedding_modality,
             semantic_weight: 1.0,
         });
     }
@@ -284,5 +326,186 @@ fn infer_media_type(extension: &str) -> &'static str {
         ".jpg" | ".jpeg" => "image/jpeg",
         ".rs" | ".py" | ".toml" | ".md" | ".txt" | ".yaml" | ".yml" => "text/plain",
         _ => "",
+    }
+}
+
+fn fallback_modality(extension: &str, has_symbols: bool) -> Modality {
+    if code_language_for_extension(extension).is_some() || has_symbols {
+        Modality::CodeSymbol
+    } else {
+        Modality::DocChunk
+    }
+}
+
+fn code_language_for_extension(extension: &str) -> Option<Language> {
+    match extension {
+        ".rs" => Some(Language::Rust),
+        ".py" => Some(Language::Python),
+        _ => None,
+    }
+}
+
+fn extract_symbol_graph_for_intake(
+    extension: &str,
+    blob_id: &str,
+    source: &str,
+) -> Option<SymbolGraph> {
+    let language = code_language_for_extension(extension)?;
+    extract_symbol_graph(language, blob_id, source).ok()
+}
+
+async fn persist_symbol_graph(
+    file_id: &str,
+    path: &str,
+    blob_id: &str,
+    source: &str,
+    graph: &SymbolGraph,
+    store: &dyn KnowledgeStore,
+) -> Result<Vec<SymbolNode>> {
+    let mut symbol_nodes = Vec::new();
+    let mut symbols = Vec::new();
+    let mut facts = Vec::new();
+    let mut edges = Vec::new();
+
+    for node in graph.nodes() {
+        if !should_embed_symbol(node) {
+            continue;
+        }
+
+        let content = symbol_text_for_embedding(source, node);
+        symbol_nodes.push(node.clone());
+        symbols.push(SymbolRecord {
+            id: node.id.to_string(),
+            blob: blob_id.to_string(),
+            path: path.to_string(),
+            name: node.name.clone(),
+            kind: symbol_kind_label(&node.kind).to_string(),
+            start_line: node.span.start_line,
+            end_line: node.span.end_line,
+            signature: node.signature.clone(),
+            content: content.clone(),
+        });
+        facts.push(FactRecord {
+            subject: node.id.to_string(),
+            predicate: "symbol_name".to_string(),
+            object: json!(node.name),
+        });
+        facts.push(FactRecord {
+            subject: node.id.to_string(),
+            predicate: "symbol_kind".to_string(),
+            object: json!(symbol_kind_label(&node.kind)),
+        });
+        facts.push(FactRecord {
+            subject: node.id.to_string(),
+            predicate: "symbol_span_start_line".to_string(),
+            object: json!(node.span.start_line),
+        });
+        facts.push(FactRecord {
+            subject: node.id.to_string(),
+            predicate: "symbol_span_end_line".to_string(),
+            object: json!(node.span.end_line),
+        });
+        facts.push(FactRecord {
+            subject: node.id.to_string(),
+            predicate: "path".to_string(),
+            object: json!(path),
+        });
+        facts.push(FactRecord {
+            subject: node.id.to_string(),
+            predicate: "location".to_string(),
+            object: json!(format!("{path}:{}-{}", node.span.start_line, node.span.end_line)),
+        });
+        facts.push(FactRecord {
+            subject: node.id.to_string(),
+            predicate: "content".to_string(),
+            object: json!(content),
+        });
+        if let Some(signature) = &node.signature {
+            facts.push(FactRecord {
+                subject: node.id.to_string(),
+                predicate: "symbol_signature".to_string(),
+                object: json!(signature),
+            });
+        }
+        edges.push(EdgeRecord {
+            from: file_id.to_string(),
+            to: node.id.to_string(),
+            kind: EdgeKind::Defines,
+            weight: 100,
+        });
+    }
+
+    for (from, to, kind) in graph.edge_refs() {
+        match kind {
+            CodeEdgeKind::Calls => edges.push(EdgeRecord {
+                from: from.id.to_string(),
+                to: to.id.to_string(),
+                kind: EdgeKind::Calls,
+                weight: 100,
+            }),
+            CodeEdgeKind::Tests => edges.push(EdgeRecord {
+                from: from.id.to_string(),
+                to: to.id.to_string(),
+                kind: EdgeKind::Tests,
+                weight: 100,
+            }),
+            CodeEdgeKind::Imports if from.name == SYNTHETIC_MODULE_NAME => edges.push(EdgeRecord {
+                from: file_id.to_string(),
+                to: to.id.to_string(),
+                kind: EdgeKind::DependsOn,
+                weight: 100,
+            }),
+            _ => {}
+        }
+    }
+
+    if !facts.is_empty() {
+        store.upsert_facts(facts).await?;
+    }
+    if !symbols.is_empty() {
+        store.upsert_symbols(symbols).await?;
+    }
+    if !edges.is_empty() {
+        store.upsert_edges(edges).await?;
+    }
+
+    Ok(symbol_nodes)
+}
+
+fn should_embed_symbol(node: &SymbolNode) -> bool {
+    matches!(
+        node.kind,
+        SymbolKind::Function | SymbolKind::Type | SymbolKind::Test
+    )
+}
+
+fn symbol_text_for_embedding(source: &str, node: &SymbolNode) -> String {
+    let mut out = Vec::new();
+    for (line_idx, line) in source.lines().enumerate() {
+        let line_no = line_idx + 1;
+        if line_no < node.span.start_line {
+            continue;
+        }
+        if line_no > node.span.end_line {
+            break;
+        }
+        out.push(line);
+    }
+
+    let text = out.join("\n");
+    if text.trim().is_empty() {
+        node.name.clone()
+    } else {
+        text
+    }
+}
+
+fn symbol_kind_label(kind: &SymbolKind) -> &'static str {
+    match kind {
+        SymbolKind::Function => "Function",
+        SymbolKind::Type => "Type",
+        SymbolKind::Module => "Module",
+        SymbolKind::Test => "Test",
+        SymbolKind::Doc => "Doc",
     }
 }

@@ -1,6 +1,6 @@
 use std::{
     cmp::Ordering,
-    collections::HashMap,
+    collections::{BTreeSet, HashMap},
     path::PathBuf,
     sync::{Arc, RwLock},
 };
@@ -26,6 +26,19 @@ pub struct FileRecord {
     pub media_type: String,
     pub size: u64,
     pub commit: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SymbolRecord {
+    pub id: String,
+    pub blob: String,
+    pub path: String,
+    pub name: String,
+    pub kind: String,
+    pub start_line: usize,
+    pub end_line: usize,
+    pub signature: Option<String>,
+    pub content: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -114,6 +127,48 @@ pub struct SemanticTriple {
     pub object: String,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct StoreSnapshot {
+    pub files: Vec<FileRecord>,
+    pub symbols: Vec<SymbolRecord>,
+    pub embeddings: Vec<EmbeddingRecord>,
+    pub facts: Vec<FactRecord>,
+    pub edges: Vec<EdgeRecord>,
+    pub semantic_triples: Vec<SemanticTriple>,
+}
+
+impl StoreSnapshot {
+    pub fn ontology_classes(&self) -> Vec<String> {
+        let mut classes = BTreeSet::new();
+
+        for fact in &self.facts {
+            if matches!(fact.predicate.as_str(), "class" | "shape" | "ontology_ref") {
+                if let Some(value) = fact.object.as_str() {
+                    classes.insert(value.to_string());
+                }
+            }
+        }
+
+        for triple in &self.semantic_triples {
+            if triple.predicate.ends_with("#type")
+                || triple.predicate.ends_with("/type")
+                || triple.predicate.ends_with(":type")
+            {
+                if triple.object.ends_with("#Class")
+                    || triple.object.ends_with("/Class")
+                    || triple.object.ends_with(":Class")
+                {
+                    classes.insert(triple.subject.clone());
+                } else {
+                    classes.insert(triple.object.clone());
+                }
+            }
+        }
+
+        classes.into_iter().collect()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct StoredSemanticTriple {
     source: String,
@@ -154,6 +209,12 @@ pub enum SemanticQuery {
         path: Option<String>,
         blob: Option<String>,
     },
+    Symbols {
+        id: Option<String>,
+        path: Option<String>,
+        name: Option<String>,
+        kind: Option<String>,
+    },
     Facts {
         subject: Option<String>,
         predicate: Option<String>,
@@ -168,6 +229,7 @@ pub enum SemanticQuery {
 pub struct QueryResult {
     pub ids: Vec<String>,
     pub files: Vec<FileRecord>,
+    pub symbols: Vec<SymbolRecord>,
     pub facts: Vec<FactRecord>,
     pub edges: Vec<EdgeRecord>,
 }
@@ -182,11 +244,13 @@ pub struct StoreHealth {
 pub trait KnowledgeStore: Send + Sync {
     async fn has_blob(&self, blob_id: &str) -> Result<bool>;
     async fn upsert_file(&self, file: FileRecord) -> Result<()>;
+    async fn upsert_symbols(&self, symbols: Vec<SymbolRecord>) -> Result<()>;
     async fn upsert_facts(&self, facts: Vec<FactRecord>) -> Result<()>;
     async fn upsert_edges(&self, edges: Vec<EdgeRecord>) -> Result<()>;
     async fn upsert_embeddings(&self, embeddings: Vec<EmbeddingRecord>) -> Result<()>;
     async fn ingest_turtle(&self, source: &str, turtle: &str) -> Result<()>;
     async fn related_objects(&self, subject: &str, predicate: &str) -> Result<Vec<String>>;
+    async fn list_classes(&self) -> Result<Vec<String>>;
     async fn query(&self, q: SemanticQuery) -> Result<QueryResult>;
     async fn health(&self) -> Result<StoreHealth>;
 }
@@ -198,11 +262,16 @@ pub struct NeumannStore {
     blobs: sled::Tree,
     semantic_triples: sled::Tree,
     files: RwLock<HashMap<String, FileRecord>>,
+    symbols: RwLock<HashMap<String, SymbolRecord>>,
     facts: RwLock<Vec<FactRecord>>,
     edges: RwLock<Vec<EdgeRecord>>,
 }
 
 impl NeumannStore {
+    pub fn new(config: NeumannConfig) -> Self {
+        Self::try_new(config).expect("NeumannStore::new: failed to open sled database")
+    }
+
     pub fn try_new(config: NeumannConfig) -> anyhow::Result<Self> {
         let db = sled::open(resolve_data_path(&config))?;
         let embeddings = db.open_tree("embeddings")?;
@@ -215,9 +284,41 @@ impl NeumannStore {
             blobs,
             semantic_triples,
             files: RwLock::new(HashMap::new()),
+            symbols: RwLock::new(HashMap::new()),
             facts: RwLock::new(Vec::new()),
             edges: RwLock::new(Vec::new()),
         })
+    }
+
+    pub fn snapshot(&self) -> StoreSnapshot {
+        let embeddings = self
+            .embeddings
+            .iter()
+            .values()
+            .filter_map(|v| v.ok())
+            .filter_map(|bytes| serde_json::from_slice::<StoredEmbeddingRecord>(&bytes).ok())
+            .map(EmbeddingRecord::from)
+            .collect();
+        let semantic_triples = self
+            .semantic_triples
+            .iter()
+            .values()
+            .filter_map(|v| v.ok())
+            .filter_map(|bytes| serde_json::from_slice::<StoredSemanticTriple>(&bytes).ok())
+            .map(SemanticTriple::from)
+            .collect();
+        StoreSnapshot {
+            files: self.files.read().expect("files").values().cloned().collect(),
+            symbols: self.symbols.read().expect("symbols").values().cloned().collect(),
+            embeddings,
+            facts: self.facts.read().expect("facts").clone(),
+            edges: self.edges.read().expect("edges").clone(),
+            semantic_triples,
+        }
+    }
+
+    pub fn ontology_classes(&self) -> Vec<String> {
+        self.snapshot().ontology_classes()
     }
 }
 
@@ -234,6 +335,16 @@ impl KnowledgeStore for NeumannStore {
             .expect("files")
             .insert(file.id.clone(), file);
         self.db.flush_async().await?;
+        Ok(())
+    }
+
+    async fn upsert_symbols(&self, symbols: Vec<SymbolRecord>) -> Result<()> {
+        let mut stored = self.symbols.write().expect("symbols");
+        for symbol in symbols {
+            self.blobs.insert(symbol.blob.as_bytes(), &[1])?;
+            stored.insert(symbol.id.clone(), symbol);
+        }
+        self.db.flush()?;
         Ok(())
     }
 
@@ -339,6 +450,37 @@ impl KnowledgeStore for NeumannStore {
         Ok(out)
     }
 
+    async fn list_classes(&self) -> Result<Vec<String>> {
+        let mut classes = Vec::new();
+
+        for symbol in self.symbols.read().expect("symbols").values() {
+            push_unique(&mut classes, symbol.kind.clone());
+        }
+
+        for fact in self.facts.read().expect("facts").iter() {
+            if (fact.predicate == "class" || fact.predicate == "symbol_kind")
+                && fact.object.as_str().is_some()
+            {
+                push_unique(&mut classes, fact.object.as_str().expect("checked").to_string());
+            }
+        }
+
+        for item in self.semantic_triples.iter().values() {
+            if let Ok(bytes) = item {
+                if let Ok(triple) = serde_json::from_slice::<StoredSemanticTriple>(&bytes) {
+                    if triple.predicate == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+                        && triple.object == "http://www.w3.org/2000/01/rdf-schema#Class"
+                    {
+                        push_unique(&mut classes, compact_term(&triple.subject));
+                    }
+                }
+            }
+        }
+
+        classes.sort();
+        Ok(classes)
+    }
+
     async fn query(&self, q: SemanticQuery) -> Result<QueryResult> {
         match q {
             SemanticQuery::Vector {
@@ -389,6 +531,43 @@ impl KnowledgeStore for NeumannStore {
                     })
                     .cloned()
                     .collect(),
+                ..QueryResult::default()
+            }),
+            SemanticQuery::Symbols {
+                id,
+                path,
+                name,
+                kind,
+            } => Ok(QueryResult {
+                symbols: {
+                    let mut results: Vec<_> = self
+                        .symbols
+                        .read()
+                        .expect("symbols")
+                        .values()
+                        .filter(|symbol| match id.as_ref() {
+                            Some(candidate) => &symbol.id == candidate,
+                            None => true,
+                        })
+                        .filter(|symbol| match path.as_ref() {
+                            Some(candidate) => symbol.path == *candidate,
+                            None => true,
+                        })
+                        .filter(|symbol| match name.as_ref() {
+                            Some(candidate) => symbol.name == *candidate,
+                            None => true,
+                        })
+                        .filter(|symbol| match kind.as_ref() {
+                            Some(candidate) => symbol.kind == *candidate,
+                            None => true,
+                        })
+                        .cloned()
+                        .collect();
+                    results.sort_by(|a, b| {
+                        a.path.cmp(&b.path).then(a.start_line.cmp(&b.start_line))
+                    });
+                    results
+                },
                 ..QueryResult::default()
             }),
             SemanticQuery::Facts { subject, predicate } => Ok(QueryResult {
@@ -516,6 +695,22 @@ fn literal_to_string(literal: &Literal<'_>) -> String {
         Literal::Simple { value } => value.to_string(),
         Literal::LanguageTaggedString { value, .. } => value.to_string(),
         Literal::Typed { value, datatype } => format!("{value}^^{}", datatype.iri),
+    }
+}
+
+fn compact_term(term: &str) -> String {
+    term
+        .trim_end_matches('/')
+        .trim_end_matches('#')
+        .rsplit(['/', '#', ':'])
+        .next()
+        .unwrap_or(term)
+        .to_string()
+}
+
+fn push_unique(values: &mut Vec<String>, candidate: String) {
+    if !values.iter().any(|value| value == &candidate) {
+        values.push(candidate);
     }
 }
 

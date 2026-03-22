@@ -3,7 +3,7 @@ use std::sync::Arc;
 use serde_json::json;
 use storage_neumann::{
     config::NeumannConfig, EmbeddingModality, EmbeddingRecord, FactRecord, FileRecord,
-    KnowledgeStore, NeumannStore, SemanticQuery,
+    KnowledgeStore, NeumannStore, SemanticQuery, SymbolRecord,
 };
 use tempfile::tempdir;
 
@@ -31,6 +31,20 @@ async fn neumann_store_contract_basics() {
         }])
         .await
         .expect("upsert facts");
+    store
+        .upsert_symbols(vec![SymbolRecord {
+            id: "git:blob:blob-1:alpha".to_string(),
+            blob: "blob-1".to_string(),
+            path: "src/lib.rs".to_string(),
+            name: "alpha".to_string(),
+            kind: "Function".to_string(),
+            start_line: 1,
+            end_line: 3,
+            signature: Some("fn alpha()".to_string()),
+            content: "fn alpha() {}".to_string(),
+        }])
+        .await
+        .expect("upsert symbols");
     store
         .upsert_embeddings(vec![
             EmbeddingRecord {
@@ -71,6 +85,17 @@ async fn neumann_store_contract_basics() {
         .expect("fact query");
     assert_eq!(facts.facts.len(), 1);
 
+    let symbols = store
+        .query(SemanticQuery::Symbols {
+            id: None,
+            path: Some("src/lib.rs".to_string()),
+            name: Some("alpha".to_string()),
+            kind: Some("Function".to_string()),
+        })
+        .await
+        .expect("symbol query");
+    assert_eq!(symbols.symbols.len(), 1);
+
     let result = store
         .query(SemanticQuery::Vector {
             embedding: Arc::from([0.9_f32, 0.1_f32]),
@@ -81,6 +106,7 @@ async fn neumann_store_contract_basics() {
         .expect("query");
 
     assert_eq!(result.ids, vec!["sym:a".to_string()]);
+    assert_eq!(store.list_classes().await.expect("classes"), vec!["Function"]);
 }
 
 #[tokio::test]
@@ -150,6 +176,107 @@ ex:SemanticAnchor a rdfs:Class ;
         .await
         .expect("topic labels");
     assert_eq!(labels, vec!["Payment retries".to_string()]);
+}
+
+#[tokio::test]
+async fn snapshot_includes_symbol_state_and_classes() {
+    let dir = tempdir().expect("tempdir");
+    let store = NeumannStore::try_new(test_config(dir.path().join("snapshot"))).expect("open store");
+    store
+        .upsert_symbols(vec![SymbolRecord {
+            id: "git:blob:blob-1:alpha".to_string(),
+            blob: "blob-1".to_string(),
+            path: "src/lib.rs".to_string(),
+            name: "alpha".to_string(),
+            kind: "Function".to_string(),
+            start_line: 1,
+            end_line: 3,
+            signature: Some("fn alpha()".to_string()),
+            content: "alpha beta".to_string(),
+        }])
+        .await
+        .expect("upsert symbols");
+    store
+        .upsert_facts(vec![FactRecord {
+            subject: "git:blob:blob-1:alpha".to_string(),
+            predicate: "class".to_string(),
+            object: json!("Function"),
+        }])
+        .await
+        .expect("upsert fact");
+
+    let snapshot = store.snapshot();
+    assert_eq!(snapshot.symbols.len(), 1);
+    assert_eq!(snapshot.ontology_classes(), vec!["Function".to_string()]);
+}
+
+#[tokio::test]
+async fn symbol_query_returns_deterministic_order() {
+    let dir = tempdir().expect("tempdir");
+    let store =
+        NeumannStore::try_new(test_config(dir.path().join("determinism"))).expect("open store");
+
+    // Insert symbols in an order that differs from the expected sorted output so
+    // that the test would fail if results were returned in insertion order.
+    store
+        .upsert_symbols(vec![
+            SymbolRecord {
+                id: "git:blob:blob-1:gamma".to_string(),
+                blob: "blob-1".to_string(),
+                path: "src/lib.rs".to_string(),
+                name: "gamma".to_string(),
+                kind: "Function".to_string(),
+                start_line: 20,
+                end_line: 22,
+                signature: None,
+                content: "fn gamma() {}".to_string(),
+            },
+            SymbolRecord {
+                id: "git:blob:blob-1:alpha".to_string(),
+                blob: "blob-1".to_string(),
+                path: "src/lib.rs".to_string(),
+                name: "alpha".to_string(),
+                kind: "Function".to_string(),
+                start_line: 1,
+                end_line: 3,
+                signature: None,
+                content: "fn alpha() {}".to_string(),
+            },
+            SymbolRecord {
+                id: "git:blob:blob-2:beta".to_string(),
+                blob: "blob-2".to_string(),
+                path: "src/other.rs".to_string(),
+                name: "beta".to_string(),
+                kind: "Function".to_string(),
+                start_line: 5,
+                end_line: 7,
+                signature: None,
+                content: "fn beta() {}".to_string(),
+            },
+        ])
+        .await
+        .expect("upsert symbols");
+
+    let result = store
+        .query(SemanticQuery::Symbols {
+            id: None,
+            path: None,
+            name: None,
+            kind: Some("Function".to_string()),
+        })
+        .await
+        .expect("symbol query");
+
+    // Results must be sorted by (path, start_line).
+    let ids: Vec<&str> = result.symbols.iter().map(|s| s.id.as_str()).collect();
+    assert_eq!(
+        ids,
+        vec![
+            "git:blob:blob-1:alpha",
+            "git:blob:blob-1:gamma",
+            "git:blob:blob-2:beta",
+        ]
+    );
 }
 
 fn test_config(path: std::path::PathBuf) -> NeumannConfig {

@@ -1,6 +1,7 @@
 use std::{path::PathBuf, process::Stdio};
 
 use serde_json::json;
+use tempfile::TempDir;
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     process::Command,
@@ -8,9 +9,11 @@ use tokio::{
 
 #[tokio::test]
 async fn cli_stdio_serves_tools_list() {
+    let xdg_home = TempDir::new().expect("tempdir");
     let binary = binary_path("phase2d");
     let mut child = Command::new(binary)
         .arg("stdio")
+        .env("XDG_DATA_HOME", xdg_home.path())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()
@@ -55,12 +58,14 @@ async fn cli_stdio_serves_tools_list() {
 
 #[tokio::test]
 async fn cli_stdio_loads_demo_runtime_config() {
+    let xdg_home = TempDir::new().expect("tempdir");
     let binary = binary_path("phase2d");
     let config = workspace_root().join("examples/acme-corp/phase2d.toml");
     let mut child = Command::new(binary)
         .arg("stdio")
         .arg("--config")
         .arg(&config)
+        .env("XDG_DATA_HOME", xdg_home.path())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()
@@ -105,12 +110,14 @@ async fn cli_stdio_loads_demo_runtime_config() {
 
 #[tokio::test]
 async fn cli_stdio_runs_agent_executor() {
+    let xdg_home = TempDir::new().expect("tempdir");
     let binary = binary_path("phase2d");
     let config = workspace_root().join("examples/acme-corp/phase2d.toml");
     let mut child = Command::new(binary)
         .arg("stdio")
         .arg("--config")
         .arg(&config)
+        .env("XDG_DATA_HOME", xdg_home.path())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()

@@ -62,9 +62,13 @@ impl ToolRegistry {
         self.tools.values().cloned()
     }
 
-    pub fn with_phase2_tools(backend: Box<dyn SearchBackend + Send + Sync>) -> Self {
+    pub fn with_phase2_tools(
+        backend: Box<dyn SearchBackend + Send + Sync>,
+        store: Arc<dyn KnowledgeStore>,
+    ) -> Self {
         Self::with_phase2_tools_and_execution(
             backend,
+            store,
             None,
             Arc::new(DisabledForwarder),
             Arc::new(DisabledExecutor),
@@ -73,10 +77,12 @@ impl ToolRegistry {
 
     pub fn with_phase2_tools_and_forwarder(
         backend: Box<dyn SearchBackend + Send + Sync>,
+        store: Arc<dyn KnowledgeStore>,
         forwarder: Arc<dyn McpForwarder>,
     ) -> Self {
         Self::with_phase2_tools_and_execution(
             backend,
+            store,
             None,
             forwarder,
             Arc::new(DisabledExecutor),
@@ -85,10 +91,12 @@ impl ToolRegistry {
 
     pub fn with_phase2_tools_and_executor(
         backend: Box<dyn SearchBackend + Send + Sync>,
+        store: Arc<dyn KnowledgeStore>,
         executor: Arc<dyn AgentExecutor>,
     ) -> Self {
         Self::with_phase2_tools_and_execution(
             backend,
+            store,
             None,
             Arc::new(DisabledForwarder),
             executor,
@@ -111,14 +119,15 @@ impl ToolRegistry {
 
     pub fn with_phase2_tools_and_execution(
         backend: Box<dyn SearchBackend + Send + Sync>,
+        store: Arc<dyn KnowledgeStore>,
         _provider: Option<Arc<dyn ModelProvider>>,
         forwarder: Arc<dyn McpForwarder>,
         executor: Arc<dyn AgentExecutor>,
     ) -> Self {
         let mut registry = Self::default();
-        registry.register(Arc::new(RepoSearchTool::new(backend)));
-        registry.register(Arc::new(RepoReadSymbolTool));
-        registry.register(Arc::new(OntologyListClassesTool));
+        registry.register(Arc::new(RepoSearchTool::new(backend, store.clone())));
+        registry.register(Arc::new(RepoReadSymbolTool::new(store.clone())));
+        registry.register(Arc::new(OntologyListClassesTool::new(store)));
         registry.register(Arc::new(AgentForwardMcpTool::new(forwarder)));
         registry.register(Arc::new(AgentRunTool::new(executor)));
         registry
@@ -172,8 +181,13 @@ impl ToolRegistry {
         forwarder: Arc<dyn McpForwarder>,
         executor: Arc<dyn AgentExecutor>,
     ) -> Self {
-        let mut registry =
-            Self::with_phase2_tools_and_execution(backend, provider.clone(), forwarder, executor);
+        let mut registry = Self::with_phase2_tools_and_execution(
+            backend,
+            store.clone(),
+            provider.clone(),
+            forwarder,
+            executor,
+        );
         if let Some(provider) = provider {
             registry.register(Arc::new(RepoIndexTool::new(store.clone(), provider)));
         }
@@ -438,12 +452,12 @@ impl McpServerRuntime {
         .await
     }
 
-    pub async fn start_phase2_configured(
+    pub async fn start_phase2_with_store(
         backend: Box<dyn SearchBackend + Send + Sync>,
-        config: Phase2RuntimeConfig,
+        store: Arc<dyn KnowledgeStore>,
+        mut config: Phase2RuntimeConfig,
     ) -> Result<Self> {
         let resources = ResourceRegistry::with_phase2_resources();
-        let store: Arc<dyn KnowledgeStore> = Arc::new(NeumannStore::try_new(config.neumann.clone())?);
 
         for resource in resources.all() {
             if resource.mime_type == "text/turtle" {
@@ -458,7 +472,7 @@ impl McpServerRuntime {
             config.forwarder,
             config.executor,
         );
-        let watcher = if let Some(watch) = config.watch {
+        let watcher = if let Some(watch) = config.watch.take() {
             let watch_roots = watch.config.roots.clone();
             Some(spawn_watchexec(
                 watch.config,
@@ -475,7 +489,7 @@ impl McpServerRuntime {
             None
         };
         let mut pollers = Vec::new();
-        for poll in config.polls {
+        for poll in config.polls.drain(..) {
             let poll_roots = poll.config.roots.clone();
             pollers.push(spawn_poller(
                 poll.config,
@@ -497,6 +511,14 @@ impl McpServerRuntime {
             watcher,
             pollers,
         })
+    }
+
+    pub async fn start_phase2_configured(
+        backend: Box<dyn SearchBackend + Send + Sync>,
+        config: Phase2RuntimeConfig,
+    ) -> Result<Self> {
+        let store: Arc<dyn KnowledgeStore> = Arc::new(NeumannStore::new(config.neumann.clone()));
+        Self::start_phase2_with_store(backend, store, config).await
     }
 
     async fn dispatch_jsonrpc(&self, request: JsonRpcRequest) -> Result<Value> {
