@@ -18,10 +18,14 @@ use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader
 use retrieval::SearchBackend;
 use storage_neumann::{config::NeumannConfig, KnowledgeStore, NeumannStore};
 
+use retrieval::EmbeddingClient;
+
 use crate::tools::{
     agent_forward_mcp::AgentForwardMcpTool, agent_run::AgentRunTool,
     ontology_list_classes::OntologyListClassesTool,
-    ontology_related_resources::OntologyRelatedResourcesTool, repo_read_symbol::RepoReadSymbolTool,
+    ontology_related_resources::OntologyRelatedResourcesTool,
+    repo_index::RepoIndexTool,
+    repo_read_symbol::RepoReadSymbolTool,
     repo_search::RepoSearchTool,
 };
 
@@ -142,8 +146,10 @@ impl ToolRegistry {
         forwarder: Arc<dyn McpForwarder>,
         executor: Arc<dyn AgentExecutor>,
     ) -> Self {
+        let embedder = Arc::new(EmbeddingClient::new());
         let mut registry = Self::with_phase2_tools_and_execution(backend, forwarder, executor);
-        registry.register(Arc::new(OntologyRelatedResourcesTool::new(store)));
+        registry.register(Arc::new(OntologyRelatedResourcesTool::new(store.clone())));
+        registry.register(Arc::new(RepoIndexTool::new(store, embedder)));
         registry
     }
 }

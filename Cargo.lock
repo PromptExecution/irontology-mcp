@@ -1893,7 +1893,10 @@ name = "retrieval"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "reqwest",
  "serde",
+ "serde_json",
+ "storage-neumann",
  "tokio",
 ]
 

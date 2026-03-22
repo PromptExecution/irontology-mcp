@@ -20,8 +20,8 @@ use std::sync::Arc;
 use tokio::signal::ctrl_c;
 
 use mcp_server::McpServerRuntime;
-use retrieval::DeterministicBackend;
-use storage_neumann::config::NeumannConfig;
+use retrieval::{DeterministicBackend, NeumannBackend};
+use storage_neumann::{config::NeumannConfig, NeumannStore};
 
 pub struct IrontologyMcpServer {
     runtime: McpServerRuntime,
@@ -38,7 +38,20 @@ impl IrontologyMcpServer {
             data_dir,
         };
 
-        let runtime = McpServerRuntime::start_phase2(backend, config).await?;
+        // 🤓 NEUMANN_BACKEND=neumann → real embeddings (requires EMBEDDING_ENDPOINT)
+        //      default → DeterministicBackend (synthetic, no external deps)
+        let use_neumann = std::env::var("NEUMANN_BACKEND")
+            .map(|v| v == "neumann")
+            .unwrap_or(false);
+
+        let runtime = if use_neumann {
+            let store = Arc::new(NeumannStore::new(config.clone()));
+            let backend = Box::new(NeumannBackend::new(store));
+            McpServerRuntime::start_phase2(backend, config).await?
+        } else {
+            let backend = Box::new(DeterministicBackend);
+            McpServerRuntime::start_phase2(backend, config).await?
+        };
         eprintln!("✅ irontology-mcp: runtime initialized");
         Ok(Self { runtime })
     }
@@ -78,6 +91,7 @@ impl ServerHandler for IrontologyMcpServer {
         let tool_names = [
             "repo.search",
             "repo.read_symbol",
+            "repo.index",
             "ontology.list_classes",
             "ontology.related_resources",
         ];
