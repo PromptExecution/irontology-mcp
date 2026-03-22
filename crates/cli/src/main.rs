@@ -26,7 +26,8 @@ use orchestrator::{AgentExecutor, SimpleAgentExecutor};
 use provider_local::{LocalProvider, LocalProviderConfig, MistralRsConfig};
 use provider_openai::{OpenAiCompatConfig, OpenAiCompatProvider};
 use provider_test::FixtureProvider;
-use retrieval::{DeterministicBackend, SearchBackend};
+use retrieval::{SearchBackend, StoreBackedBackend};
+use storage_neumann::{KnowledgeStore, NeumannStore};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use semantic_runtime::{CorrelationRule, SemanticRuntime};
@@ -57,6 +58,7 @@ struct RuntimeBootstrap {
     http_addr: String,
     backend: Box<dyn SearchBackend + Send + Sync>,
     phase2: Phase2RuntimeConfig,
+    store: Arc<dyn KnowledgeStore>,
 }
 
 #[derive(Clone)]
@@ -86,7 +88,7 @@ async fn main() -> Result<()> {
     let loaded = load_phase2d_config(args.config_path.as_deref())?;
     let bootstrap = build_runtime_bootstrap(&loaded, &args.watch_roots)?;
     let runtime = Arc::new(
-        McpServerRuntime::start_phase2_configured(bootstrap.backend, bootstrap.phase2).await?,
+        McpServerRuntime::start_phase2_with_store(bootstrap.backend, bootstrap.store, bootstrap.phase2).await?,
     );
 
     match &args.mode {
@@ -122,8 +124,10 @@ fn build_runtime_bootstrap(
     let sources = load_sources(loaded, cli_watch_roots)?;
     validate_sources(&sources, &registries)?;
     let forwarder = build_forwarder(loaded.config.forwarding.transport_forwarding);
+    let neumann = NeumannConfig::from(loaded.config.neumann.clone());
+    let store = Arc::new(NeumannStore::new(neumann.clone()));
     let backend: Arc<dyn SearchBackend + Send + Sync> =
-        Arc::new(DeterministicBackend::default());
+        Arc::new(StoreBackedBackend::from_store(store.as_ref()));
     let executor: Arc<dyn AgentExecutor> =
         Arc::new(SimpleAgentExecutor::new(backend.clone(), provider.clone()));
 
@@ -175,6 +179,7 @@ fn build_runtime_bootstrap(
         http_addr: loaded.config.server.http_addr.clone(),
         backend: Box::new(SharedSearchBackend(backend)),
         phase2,
+        store,
     })
 }
 
