@@ -1264,6 +1264,7 @@ dependencies = [
  "axum",
  "blake3",
  "forward-mcp",
+ "futures",
  "indexer",
  "orchestrator",
  "provider-api",
