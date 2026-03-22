@@ -1,16 +1,9 @@
 use anyhow::Result;
 
 use crate::fusion::RankedResult;
+use crate::store_backend::DeterministicBackend;
+use crate::SearchBackend;
 
 pub fn search(query: &str, top_k: usize) -> Result<Vec<RankedResult>> {
-    let mut out: Vec<RankedResult> = query
-        .split_whitespace()
-        .enumerate()
-        .map(|(i, t)| RankedResult {
-            id: format!("graph:{t}"),
-            score: 0.8 / ((i + 1) as f32),
-        })
-        .collect();
-    out.truncate(top_k);
-    Ok(out)
+    DeterministicBackend::default().search_graph(query, top_k)
 }

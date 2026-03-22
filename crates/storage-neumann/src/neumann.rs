@@ -1,6 +1,6 @@
 use std::{
     cmp::Ordering,
-    collections::HashMap,
+    collections::{BTreeSet, HashMap},
     sync::{Arc, RwLock},
 };
 
@@ -24,6 +24,19 @@ pub struct FileRecord {
     pub media_type: String,
     pub size: u64,
     pub commit: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SymbolRecord {
+    pub id: String,
+    pub blob: String,
+    pub path: String,
+    pub name: String,
+    pub kind: String,
+    pub start_line: usize,
+    pub end_line: usize,
+    pub signature: Option<String>,
+    pub content: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -79,6 +92,48 @@ pub struct SemanticTriple {
     pub object: String,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct StoreSnapshot {
+    pub files: Vec<FileRecord>,
+    pub symbols: Vec<SymbolRecord>,
+    pub embeddings: Vec<EmbeddingRecord>,
+    pub facts: Vec<FactRecord>,
+    pub edges: Vec<EdgeRecord>,
+    pub semantic_triples: Vec<SemanticTriple>,
+}
+
+impl StoreSnapshot {
+    pub fn ontology_classes(&self) -> Vec<String> {
+        let mut classes = BTreeSet::new();
+
+        for fact in &self.facts {
+            if matches!(fact.predicate.as_str(), "class" | "shape" | "ontology_ref") {
+                if let Some(value) = fact.object.as_str() {
+                    classes.insert(value.to_string());
+                }
+            }
+        }
+
+        for triple in &self.semantic_triples {
+            if triple.predicate.ends_with("#type")
+                || triple.predicate.ends_with("/type")
+                || triple.predicate.ends_with(":type")
+            {
+                if triple.object.ends_with("#Class")
+                    || triple.object.ends_with("/Class")
+                    || triple.object.ends_with(":Class")
+                {
+                    classes.insert(triple.subject.clone());
+                } else {
+                    classes.insert(triple.object.clone());
+                }
+            }
+        }
+
+        classes.into_iter().collect()
+    }
+}
+
 pub enum SemanticQuery {
     Vector {
         embedding: Arc<[f32]>,
@@ -88,6 +143,12 @@ pub enum SemanticQuery {
     Files {
         path: Option<String>,
         blob: Option<String>,
+    },
+    Symbols {
+        id: Option<String>,
+        path: Option<String>,
+        name: Option<String>,
+        kind: Option<String>,
     },
     Facts {
         subject: Option<String>,
@@ -103,6 +164,7 @@ pub enum SemanticQuery {
 pub struct QueryResult {
     pub ids: Vec<String>,
     pub files: Vec<FileRecord>,
+    pub symbols: Vec<SymbolRecord>,
     pub facts: Vec<FactRecord>,
     pub edges: Vec<EdgeRecord>,
 }
@@ -117,11 +179,13 @@ pub struct StoreHealth {
 pub trait KnowledgeStore: Send + Sync {
     async fn has_blob(&self, blob_id: &str) -> Result<bool>;
     async fn upsert_file(&self, file: FileRecord) -> Result<()>;
+    async fn upsert_symbols(&self, symbols: Vec<SymbolRecord>) -> Result<()>;
     async fn upsert_facts(&self, facts: Vec<FactRecord>) -> Result<()>;
     async fn upsert_edges(&self, edges: Vec<EdgeRecord>) -> Result<()>;
     async fn upsert_embeddings(&self, embeddings: Vec<EmbeddingRecord>) -> Result<()>;
     async fn ingest_turtle(&self, source: &str, turtle: &str) -> Result<()>;
     async fn related_objects(&self, subject: &str, predicate: &str) -> Result<Vec<String>>;
+    async fn list_classes(&self) -> Result<Vec<String>>;
     async fn query(&self, q: SemanticQuery) -> Result<QueryResult>;
     async fn health(&self) -> Result<StoreHealth>;
 }
@@ -129,6 +193,7 @@ pub trait KnowledgeStore: Send + Sync {
 pub struct NeumannStore {
     _config: NeumannConfig,
     files: RwLock<HashMap<String, FileRecord>>,
+    symbols: RwLock<HashMap<String, SymbolRecord>>,
     embeddings: RwLock<HashMap<String, EmbeddingRecord>>,
     blobs: RwLock<HashMap<String, bool>>,
     facts: RwLock<Vec<FactRecord>>,
@@ -141,12 +206,44 @@ impl NeumannStore {
         Self {
             _config: config,
             files: RwLock::new(HashMap::new()),
+            symbols: RwLock::new(HashMap::new()),
             embeddings: RwLock::new(HashMap::new()),
             blobs: RwLock::new(HashMap::new()),
             facts: RwLock::new(Vec::new()),
             edges: RwLock::new(Vec::new()),
             semantic_triples: RwLock::new(Vec::new()),
         }
+    }
+
+    pub fn snapshot(&self) -> StoreSnapshot {
+        StoreSnapshot {
+            files: self.files.read().expect("files").values().cloned().collect(),
+            symbols: self
+                .symbols
+                .read()
+                .expect("symbols")
+                .values()
+                .cloned()
+                .collect(),
+            embeddings: self
+                .embeddings
+                .read()
+                .expect("embeddings")
+                .values()
+                .cloned()
+                .collect(),
+            facts: self.facts.read().expect("facts").clone(),
+            edges: self.edges.read().expect("edges").clone(),
+            semantic_triples: self
+                .semantic_triples
+                .read()
+                .expect("semantic_triples")
+                .clone(),
+        }
+    }
+
+    pub fn ontology_classes(&self) -> Vec<String> {
+        self.snapshot().ontology_classes()
     }
 }
 
@@ -165,6 +262,16 @@ impl KnowledgeStore for NeumannStore {
             .write()
             .expect("files")
             .insert(file.id.clone(), file);
+        Ok(())
+    }
+
+    async fn upsert_symbols(&self, symbols: Vec<SymbolRecord>) -> Result<()> {
+        let mut blobs = self.blobs.write().expect("blobs");
+        let mut stored = self.symbols.write().expect("symbols");
+        for symbol in symbols {
+            blobs.insert(symbol.blob.clone(), true);
+            stored.insert(symbol.id.clone(), symbol);
+        }
         Ok(())
     }
 
@@ -238,6 +345,33 @@ impl KnowledgeStore for NeumannStore {
             .collect())
     }
 
+    async fn list_classes(&self) -> Result<Vec<String>> {
+        let mut classes = Vec::new();
+
+        for symbol in self.symbols.read().expect("symbols").values() {
+            push_unique(&mut classes, symbol.kind.clone());
+        }
+
+        for fact in self.facts.read().expect("facts").iter() {
+            if (fact.predicate == "class" || fact.predicate == "symbol_kind")
+                && fact.object.as_str().is_some()
+            {
+                push_unique(&mut classes, fact.object.as_str().expect("checked").to_string());
+            }
+        }
+
+        for triple in self.semantic_triples.read().expect("semantic_triples").iter() {
+            if triple.predicate == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+                && triple.object == "http://www.w3.org/2000/01/rdf-schema#Class"
+            {
+                push_unique(&mut classes, compact_term(&triple.subject));
+            }
+        }
+
+        classes.sort();
+        Ok(classes)
+    }
+
     async fn query(&self, q: SemanticQuery) -> Result<QueryResult> {
         match q {
             SemanticQuery::Vector {
@@ -276,6 +410,37 @@ impl KnowledgeStore for NeumannStore {
                     })
                     .filter(|file| match blob.as_ref() {
                         Some(candidate) => &file.blob == candidate,
+                        None => true,
+                    })
+                    .cloned()
+                    .collect(),
+                ..QueryResult::default()
+            }),
+            SemanticQuery::Symbols {
+                id,
+                path,
+                name,
+                kind,
+            } => Ok(QueryResult {
+                symbols: self
+                    .symbols
+                    .read()
+                    .expect("symbols")
+                    .values()
+                    .filter(|symbol| match id.as_ref() {
+                        Some(candidate) => &symbol.id == candidate,
+                        None => true,
+                    })
+                    .filter(|symbol| match path.as_ref() {
+                        Some(candidate) => symbol.path == *candidate,
+                        None => true,
+                    })
+                    .filter(|symbol| match name.as_ref() {
+                        Some(candidate) => symbol.name == *candidate,
+                        None => true,
+                    })
+                    .filter(|symbol| match kind.as_ref() {
+                        Some(candidate) => symbol.kind == *candidate,
                         None => true,
                     })
                     .cloned()
@@ -369,5 +534,21 @@ fn literal_to_string(literal: &Literal<'_>) -> String {
         Literal::Simple { value } => value.to_string(),
         Literal::LanguageTaggedString { value, .. } => value.to_string(),
         Literal::Typed { value, datatype } => format!("{value}^^{}", datatype.iri),
+    }
+}
+
+fn compact_term(term: &str) -> String {
+    term
+        .trim_end_matches('/')
+        .trim_end_matches('#')
+        .rsplit(['/', '#', ':'])
+        .next()
+        .unwrap_or(term)
+        .to_string()
+}
+
+fn push_unique(values: &mut Vec<String>, candidate: String) {
+    if !values.iter().any(|value| value == &candidate) {
+        values.push(candidate);
     }
 }

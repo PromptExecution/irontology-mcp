@@ -122,7 +122,8 @@ fn build_runtime_bootstrap(
     let sources = load_sources(loaded, cli_watch_roots)?;
     validate_sources(&sources, &registries)?;
     let forwarder = build_forwarder(loaded.config.forwarding.transport_forwarding);
-    let backend: Arc<dyn SearchBackend + Send + Sync> = Arc::new(DeterministicBackend);
+    let backend: Arc<dyn SearchBackend + Send + Sync> =
+        Arc::new(DeterministicBackend::default());
     let executor: Arc<dyn AgentExecutor> =
         Arc::new(SimpleAgentExecutor::new(backend.clone(), provider.clone()));
 

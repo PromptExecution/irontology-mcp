@@ -5,6 +5,8 @@ use tree_sitter::{Parser, Query, QueryCursor};
 
 use crate::{EdgeKind, NodeUri, Span, SymbolGraph, SymbolKind, SymbolNode};
 
+const MODULE_NODE_NAME: &str = "__module__";
+
 pub fn build_rust_graph(blob_id: &str, source: &str) -> Result<SymbolGraph> {
     let mut parser = Parser::new();
     parser
@@ -19,6 +21,17 @@ pub fn build_rust_graph(blob_id: &str, source: &str) -> Result<SymbolGraph> {
     let mut name_to_idx = HashMap::new();
     let mut function_spans: Vec<(usize, usize, String)> = Vec::new();
     let mut test_functions = HashSet::new();
+    let module_idx = graph.add_node(SymbolNode {
+        id: NodeUri::new(blob_id, MODULE_NODE_NAME),
+        name: MODULE_NODE_NAME.to_string(),
+        kind: SymbolKind::Module,
+        doctext: None,
+        span: Span {
+            start_line: 1,
+            end_line: source_lines.len().max(1),
+        },
+        signature: None,
+    });
 
     let function_query = Query::new(
         &tree_sitter_rust::language(),
@@ -55,6 +68,7 @@ pub fn build_rust_graph(blob_id: &str, source: &str) -> Result<SymbolGraph> {
                 signature: None,
             };
             let idx = graph.add_node(symbol);
+            graph.add_edge(module_idx, idx, EdgeKind::Defines);
             name_to_idx.insert(name.to_string(), idx);
             function_spans.push((
                 item_node.start_position().row + 1,
@@ -85,7 +99,7 @@ pub fn build_rust_graph(blob_id: &str, source: &str) -> Result<SymbolGraph> {
         }
 
         if let (Some(name), Some(item_node)) = (type_name, type_item_node) {
-            graph.add_node(SymbolNode {
+            let idx = graph.add_node(SymbolNode {
                 id: NodeUri::new(blob_id, name),
                 name: name.to_string(),
                 kind: SymbolKind::Type,
@@ -96,6 +110,7 @@ pub fn build_rust_graph(blob_id: &str, source: &str) -> Result<SymbolGraph> {
                 },
                 signature: None,
             });
+            graph.add_edge(module_idx, idx, EdgeKind::Defines);
         }
     }
 
@@ -108,45 +123,51 @@ pub fn build_rust_graph(blob_id: &str, source: &str) -> Result<SymbolGraph> {
         .collect();
 
     if !imports.is_empty() {
-        for fidx in name_to_idx.values().copied() {
-            for imp in &imports {
-                let imp_name = source[imp.node.byte_range()].trim();
-                let imp_node = SymbolNode {
-                    id: NodeUri::new(blob_id, imp_name),
-                    name: imp_name.to_string(),
-                    kind: SymbolKind::Module,
-                    doctext: None,
-                    span: Span {
-                        start_line: imp.node.start_position().row + 1,
-                        end_line: imp.node.end_position().row + 1,
-                    },
-                    signature: None,
-                };
-                let iidx = graph.add_node(imp_node);
-                graph.add_edge(fidx, iidx, EdgeKind::Imports);
+        for imp in &imports {
+            let imp_name = normalize_import(source[imp.node.byte_range()].trim());
+            if imp_name.is_empty() {
+                continue;
             }
+
+            let imp_node = SymbolNode {
+                id: NodeUri::new(blob_id, &imp_name),
+                name: imp_name,
+                kind: SymbolKind::Module,
+                doctext: None,
+                span: Span {
+                    start_line: imp.node.start_position().row + 1,
+                    end_line: imp.node.end_position().row + 1,
+                },
+                signature: None,
+            };
+            let iidx = graph.add_node(imp_node);
+            graph.add_edge(module_idx, iidx, EdgeKind::Imports);
         }
     }
 
-    let call_query = Query::new(
-        &tree_sitter_rust::language(),
-        "(call_expression function: (identifier) @callee)",
-    )?;
+    let call_query = Query::new(&tree_sitter_rust::language(), "(call_expression) @call")?;
     let mut cursor = QueryCursor::new();
     for m in cursor.matches(&call_query, tree.root_node(), source.as_bytes()) {
         for cap in m.captures {
-            if call_query.capture_names()[cap.index as usize] != "callee" {
+            if call_query.capture_names()[cap.index as usize] != "call" {
                 continue;
             }
 
-            let callee = &source[cap.node.byte_range()];
-            let Some(&to) = name_to_idx.get(callee) else {
+            let call_node = cap.node;
+            let Some(function_node) = call_node.child_by_field_name("function") else {
+                continue;
+            };
+            let Some(callee) = resolve_symbol_name(&source[function_node.byte_range()]) else {
+                continue;
+            };
+            let Some(&to) = name_to_idx.get(&callee) else {
                 continue;
             };
 
-            let call_row = cap.node.start_position().row + 1;
+            let call_row = call_node.start_position().row + 1;
             let maybe_from = function_spans
                 .iter()
+                .rev()
                 .find(|(start, end, _)| *start <= call_row && *end >= call_row)
                 .map(|(_, _, name)| name.as_str())
                 .and_then(|name| name_to_idx.get(name).copied().map(|idx| (name, idx)));
@@ -161,6 +182,28 @@ pub fn build_rust_graph(blob_id: &str, source: &str) -> Result<SymbolGraph> {
     }
 
     Ok(graph)
+}
+
+fn normalize_import(text: &str) -> String {
+    text.trim()
+        .trim_end_matches(';')
+        .strip_prefix("use ")
+        .unwrap_or(text.trim().trim_end_matches(';'))
+        .trim()
+        .to_string()
+}
+
+fn resolve_symbol_name(text: &str) -> Option<String> {
+    let text = text.trim().trim_end_matches(';');
+    let text = text.strip_suffix("()").unwrap_or(text);
+    let text = text.rsplit("::").next().unwrap_or(text);
+    let text = text.rsplit('.').next().unwrap_or(text);
+    let text = text.trim_matches(|c: char| matches!(c, '(' | ')' | '{' | '}' | ',' | '<' | '>'));
+    if text.is_empty() {
+        None
+    } else {
+        Some(text.to_string())
+    }
 }
 
 fn has_test_attribute(source_lines: &[&str], function_row: usize) -> bool {

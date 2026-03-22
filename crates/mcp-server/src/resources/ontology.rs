@@ -3,17 +3,22 @@ use serde_json::json;
 use crate::Resource;
 
 pub fn list_classes() -> serde_json::Value {
+    let classes = class_names();
     json!({
-        "classes": [
-            "CodeSymbol",
-            "Module",
-            "Function",
-            "OntologyNode",
-            "Document",
-            "Topic",
-            "SemanticAnchor"
-        ]
+        "classes": classes
     })
+}
+
+pub fn class_names() -> Vec<String> {
+    vec![
+        "CodeSymbol".to_string(),
+        "Module".to_string(),
+        "Function".to_string(),
+        "OntologyNode".to_string(),
+        "Document".to_string(),
+        "Topic".to_string(),
+        "SemanticAnchor".to_string(),
+    ]
 }
 
 pub fn phase2_resources() -> Vec<Resource> {

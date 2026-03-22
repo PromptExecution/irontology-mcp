@@ -38,7 +38,7 @@ pub struct IrontologyMcpServer {
 
 impl IrontologyMcpServer {
     pub async fn new() -> Result<Self> {
-        let backend = Box::new(DeterministicBackend);
+        let backend = Box::new(DeterministicBackend::default());
         let config = NeumannConfig {
             endpoint: "http://localhost:7777".into(),
             namespace: "default".into(),

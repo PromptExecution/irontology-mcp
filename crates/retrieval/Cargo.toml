@@ -5,7 +5,11 @@ edition.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+futures = "0.3"
+provider-api = { path = "../provider-api" }
 serde.workspace = true
+serde_json.workspace = true
+storage-neumann = { path = "../storage-neumann" }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt"] }

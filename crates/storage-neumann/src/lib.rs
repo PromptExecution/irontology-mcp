@@ -5,4 +5,5 @@ pub use config::NeumannConfig;
 pub use neumann::{
     EdgeKind, EdgeRecord, EmbeddingModality, EmbeddingRecord, FactRecord, FileRecord,
     KnowledgeStore, NeumannStore, QueryResult, SemanticQuery, SemanticTriple, StoreHealth,
+    StoreSnapshot, SymbolRecord,
 };

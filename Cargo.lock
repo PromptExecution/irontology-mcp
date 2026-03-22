@@ -985,6 +985,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "codegraph",
  "domain",
  "dsl",
  "intake",
@@ -1809,7 +1810,11 @@ name = "retrieval"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "futures",
+ "provider-api",
  "serde",
+ "serde_json",
+ "storage-neumann",
  "tokio",
 ]
 

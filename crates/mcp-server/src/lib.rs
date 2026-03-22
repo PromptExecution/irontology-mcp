@@ -62,9 +62,13 @@ impl ToolRegistry {
         self.tools.values().cloned()
     }
 
-    pub fn with_phase2_tools(backend: Box<dyn SearchBackend + Send + Sync>) -> Self {
+    pub fn with_phase2_tools(
+        backend: Box<dyn SearchBackend + Send + Sync>,
+        store: Arc<dyn KnowledgeStore>,
+    ) -> Self {
         Self::with_phase2_tools_and_execution(
             backend,
+            store,
             None,
             Arc::new(DisabledForwarder),
             Arc::new(DisabledExecutor),
@@ -73,10 +77,12 @@ impl ToolRegistry {
 
     pub fn with_phase2_tools_and_forwarder(
         backend: Box<dyn SearchBackend + Send + Sync>,
+        store: Arc<dyn KnowledgeStore>,
         forwarder: Arc<dyn McpForwarder>,
     ) -> Self {
         Self::with_phase2_tools_and_execution(
             backend,
+            store,
             None,
             forwarder,
             Arc::new(DisabledExecutor),
@@ -85,10 +91,12 @@ impl ToolRegistry {
 
     pub fn with_phase2_tools_and_executor(
         backend: Box<dyn SearchBackend + Send + Sync>,
+        store: Arc<dyn KnowledgeStore>,
         executor: Arc<dyn AgentExecutor>,
     ) -> Self {
         Self::with_phase2_tools_and_execution(
             backend,
+            store,
             None,
             Arc::new(DisabledForwarder),
             executor,
@@ -111,14 +119,15 @@ impl ToolRegistry {
 
     pub fn with_phase2_tools_and_execution(
         backend: Box<dyn SearchBackend + Send + Sync>,
+        store: Arc<dyn KnowledgeStore>,
         _provider: Option<Arc<dyn ModelProvider>>,
         forwarder: Arc<dyn McpForwarder>,
         executor: Arc<dyn AgentExecutor>,
     ) -> Self {
         let mut registry = Self::default();
-        registry.register(Arc::new(RepoSearchTool::new(backend)));
-        registry.register(Arc::new(RepoReadSymbolTool));
-        registry.register(Arc::new(OntologyListClassesTool));
+        registry.register(Arc::new(RepoSearchTool::new(backend, store.clone())));
+        registry.register(Arc::new(RepoReadSymbolTool::new(store.clone())));
+        registry.register(Arc::new(OntologyListClassesTool::new(store)));
         registry.register(Arc::new(AgentForwardMcpTool::new(forwarder)));
         registry.register(Arc::new(AgentRunTool::new(executor)));
         registry
@@ -172,8 +181,13 @@ impl ToolRegistry {
         forwarder: Arc<dyn McpForwarder>,
         executor: Arc<dyn AgentExecutor>,
     ) -> Self {
-        let mut registry =
-            Self::with_phase2_tools_and_execution(backend, provider.clone(), forwarder, executor);
+        let mut registry = Self::with_phase2_tools_and_execution(
+            backend,
+            store.clone(),
+            provider.clone(),
+            forwarder,
+            executor,
+        );
         if let Some(provider) = provider {
             registry.register(Arc::new(RepoIndexTool::new(store.clone(), provider)));
         }

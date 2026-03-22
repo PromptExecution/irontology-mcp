@@ -3,7 +3,7 @@ use std::sync::Arc;
 use serde_json::json;
 use storage_neumann::{
     config::NeumannConfig, EmbeddingModality, EmbeddingRecord, FactRecord, FileRecord,
-    KnowledgeStore, NeumannStore, SemanticQuery,
+    KnowledgeStore, NeumannStore, SemanticQuery, SymbolRecord,
 };
 
 #[tokio::test]
@@ -29,6 +29,20 @@ async fn neumann_store_contract_basics() {
         }])
         .await
         .expect("upsert facts");
+    store
+        .upsert_symbols(vec![SymbolRecord {
+            id: "git:blob:blob-1:alpha".to_string(),
+            blob: "blob-1".to_string(),
+            path: "src/lib.rs".to_string(),
+            name: "alpha".to_string(),
+            kind: "Function".to_string(),
+            start_line: 1,
+            end_line: 3,
+            signature: Some("fn alpha()".to_string()),
+            content: "fn alpha() {}".to_string(),
+        }])
+        .await
+        .expect("upsert symbols");
     store
         .upsert_embeddings(vec![
             EmbeddingRecord {
@@ -69,6 +83,17 @@ async fn neumann_store_contract_basics() {
         .expect("fact query");
     assert_eq!(facts.facts.len(), 1);
 
+    let symbols = store
+        .query(SemanticQuery::Symbols {
+            id: None,
+            path: Some("src/lib.rs".to_string()),
+            name: Some("alpha".to_string()),
+            kind: Some("Function".to_string()),
+        })
+        .await
+        .expect("symbol query");
+    assert_eq!(symbols.symbols.len(), 1);
+
     let result = store
         .query(SemanticQuery::Vector {
             embedding: Arc::from([0.9_f32, 0.1_f32]),
@@ -79,6 +104,7 @@ async fn neumann_store_contract_basics() {
         .expect("query");
 
     assert_eq!(result.ids, vec!["sym:a".to_string()]);
+    assert_eq!(store.list_classes().await.expect("classes"), vec!["Function"]);
 }
 
 #[tokio::test]
@@ -147,4 +173,35 @@ ex:SemanticAnchor a rdfs:Class ;
         .await
         .expect("topic labels");
     assert_eq!(labels, vec!["Payment retries".to_string()]);
+}
+
+#[tokio::test]
+async fn snapshot_includes_symbol_state_and_classes() {
+    let store = NeumannStore::new(NeumannConfig::default());
+    store
+        .upsert_symbols(vec![SymbolRecord {
+            id: "git:blob:blob-1:alpha".to_string(),
+            blob: "blob-1".to_string(),
+            path: "src/lib.rs".to_string(),
+            name: "alpha".to_string(),
+            kind: "Function".to_string(),
+            start_line: 1,
+            end_line: 3,
+            signature: Some("fn alpha()".to_string()),
+            content: "alpha beta".to_string(),
+        }])
+        .await
+        .expect("upsert symbols");
+    store
+        .upsert_facts(vec![FactRecord {
+            subject: "git:blob:blob-1:alpha".to_string(),
+            predicate: "class".to_string(),
+            object: json!("Function"),
+        }])
+        .await
+        .expect("upsert fact");
+
+    let snapshot = store.snapshot();
+    assert_eq!(snapshot.symbols.len(), 1);
+    assert_eq!(snapshot.ontology_classes(), vec!["Function".to_string()]);
 }

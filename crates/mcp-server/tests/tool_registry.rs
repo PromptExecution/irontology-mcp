@@ -5,7 +5,7 @@ use orchestrator::{AgentRunResponse, StaticExecutor};
 use provider_test::FixtureProvider;
 use retrieval::{RankedResult, SearchBackend};
 use serde_json::json;
-use storage_neumann::{KnowledgeStore, NeumannStore, SemanticQuery};
+use storage_neumann::{EdgeKind, EdgeRecord, FactRecord, KnowledgeStore, NeumannStore, SemanticQuery};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -30,7 +30,8 @@ impl SearchBackend for FixedBackend {
 
 #[tokio::test]
 async fn registry_contains_and_invokes_phase2_tools() {
-    let registry = ToolRegistry::with_phase2_tools(Box::new(FixedBackend));
+    let store: Arc<dyn KnowledgeStore> = Arc::new(NeumannStore::new(Default::default()));
+    let registry = ToolRegistry::with_phase2_tools(Box::new(FixedBackend), store);
 
     assert!(registry.has("repo.search"));
     assert!(registry.has("repo.read_symbol"));
@@ -53,6 +54,109 @@ async fn registry_contains_and_invokes_phase2_tools() {
 }
 
 #[tokio::test]
+async fn repo_search_enriches_hits_from_store_context() {
+    let store = Arc::new(NeumannStore::new(Default::default()));
+    store
+        .upsert_facts(vec![
+            FactRecord {
+                subject: "alpha".to_string(),
+                predicate: "symbol_kind".to_string(),
+                object: json!("Function"),
+            },
+            FactRecord {
+                subject: "alpha".to_string(),
+                predicate: "location".to_string(),
+                object: json!("src/lib.rs:12"),
+            },
+            FactRecord {
+                subject: "alpha".to_string(),
+                predicate: "summary".to_string(),
+                object: json!("alpha does the important work"),
+            },
+        ])
+        .await
+        .expect("seed facts");
+    store
+        .upsert_edges(vec![EdgeRecord {
+            from: "alpha".to_string(),
+            to: "beta".to_string(),
+            kind: EdgeKind::Calls,
+            weight: 1,
+        }])
+        .await
+        .expect("seed edges");
+
+    let registry = ToolRegistry::with_phase2_tools(Box::new(FixedBackend), store.clone());
+    let tool = registry.get("repo.search").expect("search tool");
+    let response = tool
+        .call(json!({
+            "query": "alpha",
+            "top_k": 1,
+            "expand": true
+        }))
+        .await
+        .expect("search call");
+
+    assert_eq!(response["results"][0]["id"], "alpha");
+    assert_eq!(response["results"][0]["symbol_kind"], json!("Function"));
+    assert_eq!(response["results"][0]["location"], json!("src/lib.rs:12"));
+    assert_eq!(
+        response["results"][0]["content"],
+        json!("alpha does the important work")
+    );
+    assert!(response["results"][0]["facts"].is_array());
+    assert!(response["results"][0]["edges"].is_array());
+}
+
+#[tokio::test]
+async fn repo_read_symbol_resolves_store_state() {
+    let store = Arc::new(NeumannStore::new(Default::default()));
+    store
+        .upsert_facts(vec![
+            FactRecord {
+                subject: "alpha".to_string(),
+                predicate: "symbol_kind".to_string(),
+                object: json!("Function"),
+            },
+            FactRecord {
+                subject: "alpha".to_string(),
+                predicate: "path".to_string(),
+                object: json!("src/lib.rs"),
+            },
+            FactRecord {
+                subject: "alpha".to_string(),
+                predicate: "summary".to_string(),
+                object: json!("alpha summary"),
+            },
+        ])
+        .await
+        .expect("seed facts");
+    store
+        .upsert_edges(vec![EdgeRecord {
+            from: "alpha".to_string(),
+            to: "beta".to_string(),
+            kind: EdgeKind::Calls,
+            weight: 1,
+        }])
+        .await
+        .expect("seed edges");
+
+    let registry = ToolRegistry::with_phase2_tools(Box::new(FixedBackend), store);
+    let tool = registry.get("repo.read_symbol").expect("read tool");
+    let response = tool
+        .call(json!({ "id": "alpha" }))
+        .await
+        .expect("read call");
+
+    assert_eq!(response["id"], "alpha");
+    assert_eq!(response["found"], true);
+    assert_eq!(response["symbol_kind"], json!("Function"));
+    assert_eq!(response["location"], json!("src/lib.rs"));
+    assert!(response["facts"].is_array());
+    assert!(response["edges"].is_array());
+}
+
+#[tokio::test]
 async fn registry_invokes_forward_mcp_tool_with_allowlist() {
     let forwarder = StaticForwarder::new(ForwardResponse {
         target: "stdio://child:other-agent".to_string(),
@@ -62,6 +166,7 @@ async fn registry_invokes_forward_mcp_tool_with_allowlist() {
     });
     let registry = ToolRegistry::with_phase2_tools_and_forwarder(
         Box::new(FixedBackend),
+        Arc::new(NeumannStore::new(Default::default())),
         std::sync::Arc::new(forwarder.clone()),
     );
 
@@ -102,6 +207,7 @@ async fn registry_invokes_agent_run_tool() {
     });
     let registry = ToolRegistry::with_phase2_tools_and_executor(
         Box::new(FixedBackend),
+        Arc::new(NeumannStore::new(Default::default())),
         std::sync::Arc::new(executor.clone()),
     );
 
