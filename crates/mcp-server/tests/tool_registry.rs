@@ -5,7 +5,7 @@ use orchestrator::{AgentRunResponse, StaticExecutor};
 use provider_test::FixtureProvider;
 use retrieval::{RankedResult, SearchBackend};
 use serde_json::json;
-use storage_neumann::{config::NeumannConfig, EdgeKind, EdgeRecord, FactRecord, KnowledgeStore, NeumannStore, SemanticQuery};
+use storage_neumann::{config::NeumannConfig, EdgeKind, EdgeRecord, FactRecord, KnowledgeStore, NeumannStore, SemanticQuery, SymbolRecord};
 use std::sync::Arc;
 use tempfile::{tempdir, TempDir};
 use uuid::Uuid;
@@ -163,6 +163,41 @@ async fn repo_read_symbol_resolves_store_state() {
     assert_eq!(response["location"], json!("src/lib.rs"));
     assert!(response["facts"].is_array());
     assert!(response["edges"].is_array());
+}
+
+#[tokio::test]
+async fn repo_read_symbol_found_when_only_symbol_record_exists() {
+    let (_dir, store) = tmp_store();
+    store
+        .upsert_symbols(vec![SymbolRecord {
+            id: "sym-only".to_string(),
+            blob: "abc".to_string(),
+            path: "src/sym.rs".to_string(),
+            name: "sym_fn".to_string(),
+            kind: "fn".to_string(),
+            start_line: 5,
+            end_line: 10,
+            signature: Some("fn sym_fn() -> ()".to_string()),
+            content: "fn sym_fn() {}".to_string(),
+        }])
+        .await
+        .expect("seed symbol");
+
+    let registry = ToolRegistry::with_phase2_tools(Box::new(FixedBackend), store);
+    let tool = registry.get("repo.read_symbol").expect("read tool");
+    let response = tool
+        .call(json!({ "id": "sym-only" }))
+        .await
+        .expect("read call");
+
+    assert_eq!(response["id"], "sym-only");
+    assert_eq!(response["found"], true);
+    assert_eq!(response["location"], json!("src/sym.rs"));
+    assert_eq!(response["symbol_kind"], json!("fn"));
+    assert_eq!(response["content"], json!("fn sym_fn() {}"));
+    assert_eq!(response["signature"], json!("fn sym_fn() -> ()"));
+    assert_eq!(response["span"]["start"], json!(5));
+    assert_eq!(response["span"]["end"], json!(10));
 }
 
 #[tokio::test]

@@ -1,9 +1,10 @@
 use anyhow::Result;
 use serde_json::Value;
-use storage_neumann::{EdgeRecord, FactRecord, KnowledgeStore, SemanticQuery};
+use storage_neumann::{EdgeRecord, FactRecord, KnowledgeStore, SemanticQuery, SymbolRecord};
 
 #[derive(Debug, Clone)]
 pub struct SymbolContext {
+    pub symbols: Vec<SymbolRecord>,
     pub facts: Vec<FactRecord>,
     pub edges: Vec<EdgeRecord>,
 }
@@ -13,6 +14,16 @@ pub async fn resolve_symbol_context(
     id: &str,
     expand: bool,
 ) -> Result<SymbolContext> {
+    let symbols = store
+        .query(SemanticQuery::Symbols {
+            id: Some(id.to_string()),
+            path: None,
+            name: None,
+            kind: None,
+        })
+        .await?
+        .symbols;
+
     let facts = store
         .query(SemanticQuery::Facts {
             subject: Some(id.to_string()),
@@ -33,7 +44,7 @@ pub async fn resolve_symbol_context(
         Vec::new()
     };
 
-    Ok(SymbolContext { facts, edges })
+    Ok(SymbolContext { symbols, facts, edges })
 }
 
 pub fn fact_text(facts: &[FactRecord], candidates: &[&str]) -> Option<String> {
