@@ -8,6 +8,7 @@ pub mod vector;
 
 pub use embed::EmbeddingClient;
 pub use fusion::{fusion_search, FusionWeights, RankedResult, SearchBackend};
+pub use store_backend::StoreBackedBackend;
 pub use vector::VectorBackend;
 
 use std::sync::Arc;
@@ -17,6 +18,7 @@ use storage_neumann::NeumannStore;
 
 /// Synthetic (deterministic) backend — no external dependencies.
 /// Used in tests and when NeumannStore/embeddings not available.
+#[derive(Default)]
 pub struct DeterministicBackend;
 
 impl SearchBackend for DeterministicBackend {

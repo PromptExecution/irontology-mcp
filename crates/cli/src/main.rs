@@ -26,7 +26,7 @@ use orchestrator::{AgentExecutor, SimpleAgentExecutor};
 use provider_local::{LocalProvider, LocalProviderConfig, MistralRsConfig};
 use provider_openai::{OpenAiCompatConfig, OpenAiCompatProvider};
 use provider_test::FixtureProvider;
-use retrieval::{SearchBackend, StoreBackedBackend};
+use retrieval::SearchBackend;
 use storage_neumann::{KnowledgeStore, NeumannStore};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -127,7 +127,7 @@ fn build_runtime_bootstrap(
     let neumann = NeumannConfig::from(loaded.config.neumann.clone());
     let store = Arc::new(NeumannStore::new(neumann.clone()));
     let backend: Arc<dyn SearchBackend + Send + Sync> =
-        Arc::new(StoreBackedBackend::from_store(store.as_ref()));
+        Arc::new(retrieval::StoreBackedBackend::from_store(store.as_ref()));
     let executor: Arc<dyn AgentExecutor> =
         Arc::new(SimpleAgentExecutor::new(backend.clone(), provider.clone()));
 

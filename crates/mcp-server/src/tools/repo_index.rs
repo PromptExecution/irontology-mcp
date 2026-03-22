@@ -1,7 +1,7 @@
 //! repo.index MCP tool — ingest text content into NeumannStore
 //!
 //! Used by b00t grok digest/learn to push content into irontology.
-//! Chunks content, embeds via EmbeddingClient, upserts embeddings + turtle triple.
+//! Chunks content, embeds via ModelProvider, upserts embeddings + turtle triple.
 //!
 //! Input:
 //!   content: string  — text to index
@@ -10,12 +10,12 @@
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
+use provider_api::{EmbedRequest, ModelProvider};
 use serde_json::{json, Value};
 use std::sync::Arc;
 
-use retrieval::EmbeddingClient;
 use storage_neumann::{
-    EmbeddingModality, EmbeddingRecord, KnowledgeStore, SemanticTriple,
+    EmbeddingModality, EmbeddingRecord, KnowledgeStore,
 };
 
 use crate::Tool;
@@ -30,12 +30,12 @@ pub const MAX_CHUNKS: usize = 256;
 
 pub struct RepoIndexTool {
     store: Arc<dyn KnowledgeStore>,
-    embedder: Arc<EmbeddingClient>,
+    provider: Arc<dyn ModelProvider>,
 }
 
 impl RepoIndexTool {
-    pub fn new(store: Arc<dyn KnowledgeStore>, embedder: Arc<EmbeddingClient>) -> Self {
-        Self { store, embedder }
+    pub fn new(store: Arc<dyn KnowledgeStore>, provider: Arc<dyn ModelProvider>) -> Self {
+        Self { store, provider }
     }
 }
 
@@ -84,24 +84,30 @@ impl Tool for RepoIndexTool {
 
         // 1. Chunk the content
         let chunks = chunk_text(content, CHUNK_SIZE, CHUNK_OVERLAP);
-        let chunk_count = chunks.len();
+        let chunks_created = chunks.len();
 
-        // 2. Embed each chunk + upsert into NeumannStore
+        // 2. Embed all chunks via ModelProvider and upsert into NeumannStore
         let mut embeddings = Vec::new();
-        for (i, chunk) in chunks.iter().enumerate() {
-            let id = format!("{}::chunk::{}", source, i);
-            match self.embedder.embed(chunk).await {
-                Ok(vec) => {
-                    embeddings.push(EmbeddingRecord {
-                        id,
-                        source_blob: source.to_string(),
-                        vector: vec.into(),
-                        modality: EmbeddingModality::DocChunk,
-                        semantic_weight: 1.0,
-                    });
+        if !chunks.is_empty() {
+            let req = EmbedRequest {
+                model: self.provider.model_id().to_string(),
+                inputs: chunks.clone(),
+                batch_size: chunks_created,
+            };
+            match self.provider.embed(req).await {
+                Ok(resp) => {
+                    for (i, vector) in resp.vectors.into_iter().enumerate() {
+                        embeddings.push(EmbeddingRecord {
+                            id: format!("{}::chunk::{}", source, i),
+                            source_blob: source.to_string(),
+                            vector,
+                            modality: EmbeddingModality::DocChunk,
+                            semantic_weight: 1.0,
+                        });
+                    }
                 }
                 Err(e) => {
-                    eprintln!("⚠️ repo.index: embed chunk {i} failed: {e} (skipping)");
+                    eprintln!("⚠️ repo.index: embed failed: {e} (skipping embeddings)");
                 }
             }
         }
@@ -122,7 +128,7 @@ impl Tool for RepoIndexTool {
             "indexed": true,
             "source": source,
             "topic": topic,
-            "chunks": chunk_count,
+            "chunks_created": chunks_created,
             "embedded": embedded,
         }))
     }

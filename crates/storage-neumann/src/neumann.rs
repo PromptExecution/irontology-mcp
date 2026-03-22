@@ -2,7 +2,10 @@ use std::{
     cmp::Ordering,
     collections::{BTreeSet, HashMap},
     path::PathBuf,
-    sync::{Arc, RwLock},
+    sync::{
+        atomic::{AtomicU64, Ordering as AtomicOrdering},
+        Arc, RwLock,
+    },
 };
 
 use anyhow::Result;
@@ -95,31 +98,31 @@ struct StoredEmbeddingRecord {
     semantic_weight: f32,
 }
 
-impl From<&EmbeddingRecord> for StoredEmbedding {
-    fn from(r: &EmbeddingRecord) -> Self {
+impl From<EmbeddingRecord> for StoredEmbeddingRecord {
+    fn from(value: EmbeddingRecord) -> Self {
         Self {
-            id: r.id.clone(),
-            source_blob: r.source_blob.clone(),
-            vector: r.vector.to_vec(),
-            modality: r.modality,
-            semantic_weight: r.semantic_weight,
+            id: value.id,
+            source_blob: value.source_blob,
+            vector: value.vector.as_ref().to_vec(),
+            modality: value.modality,
+            semantic_weight: value.semantic_weight,
         }
     }
 }
 
-impl From<StoredEmbedding> for EmbeddingRecord {
-    fn from(s: StoredEmbedding) -> Self {
+impl From<StoredEmbeddingRecord> for EmbeddingRecord {
+    fn from(value: StoredEmbeddingRecord) -> Self {
         Self {
-            id: s.id,
-            source_blob: s.source_blob,
-            vector: s.vector.into(),
-            modality: s.modality,
-            semantic_weight: s.semantic_weight,
+            id: value.id,
+            source_blob: value.source_blob,
+            vector: Arc::from(value.vector.into_boxed_slice()),
+            modality: value.modality,
+            semantic_weight: value.semantic_weight,
         }
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SemanticTriple {
     pub source: String,
     pub subject: String,
@@ -265,112 +268,94 @@ pub struct NeumannStore {
     symbols: RwLock<HashMap<String, SymbolRecord>>,
     facts: RwLock<Vec<FactRecord>>,
     edges: RwLock<Vec<EdgeRecord>>,
-    semantic_triples: RwLock<Vec<SemanticTriple>>,
-    // 🤓 sled: Some(db) if data_dir was set — write-through persistence
-    db: Option<Arc<sled::Db>>,
+    /// Counts sled read and JSON deserialization errors since store creation.
+    /// Surfaced via `health()` so operators can detect DB corruption or schema drift.
+    deser_error_count: Arc<AtomicU64>,
 }
 
 impl NeumannStore {
     pub fn new(config: NeumannConfig) -> Self {
-        let db = config.data_dir.as_ref().and_then(|dir| {
-            sled::open(dir)
-                .map(Arc::new)
-                .map_err(|e| {
-                    eprintln!("⚠️ NeumannStore: failed to open sled at {dir}: {e}");
-                    e
-                })
-                .ok()
-        });
+        Self::try_new(config).expect("NeumannStore::new: failed to open sled database")
+    }
 
-        let mut store = Self {
-            _config: config,
+    pub fn try_new(config: NeumannConfig) -> anyhow::Result<Self> {
+        let db = sled::open(resolve_data_path(&config))?;
+        let embeddings = db.open_tree("embeddings")?;
+        let blobs = db.open_tree("blobs")?;
+        let semantic_triples = db.open_tree("semantic_triples")?;
+        Ok(Self {
+            config,
+            db,
+            embeddings,
+            blobs,
+            semantic_triples,
             files: RwLock::new(HashMap::new()),
             symbols: RwLock::new(HashMap::new()),
             facts: RwLock::new(Vec::new()),
             edges: RwLock::new(Vec::new()),
-            semantic_triples: RwLock::new(Vec::new()),
-            db,
-        };
-
-        // Restore in-memory state from sled if available
-        if store.db.is_some() {
-            if let Err(e) = store.restore_from_sled() {
-                eprintln!("⚠️ NeumannStore: restore failed: {e}");
-            }
-        }
-
-        store
+            deser_error_count: Arc::new(AtomicU64::new(0)),
+        })
     }
 
-    fn restore_from_sled(&mut self) -> Result<()> {
-        let db = self.db.as_ref().expect("db");
-
-        // Restore semantic triples
-        if let Ok(tree) = db.open_tree("triples") {
-            let mut triples = self.semantic_triples.write().expect("triples");
-            for item in tree.iter() {
-                if let Ok((_, v)) = item {
-                    if let Ok(triple) = serde_json::from_slice::<SemanticTriple>(&v) {
-                        triples.push(triple);
+    pub fn snapshot(&self) -> StoreSnapshot {
+        let embeddings = self
+            .embeddings
+            .iter()
+            .values()
+            .filter_map(|v| match v {
+                Ok(bytes) => match serde_json::from_slice::<StoredEmbeddingRecord>(&bytes) {
+                    Ok(record) => Some(EmbeddingRecord::from(record)),
+                    Err(e) => {
+                        self.deser_error_count
+                            .fetch_add(1, AtomicOrdering::Relaxed);
+                        eprintln!(
+                            "⚠️ NeumannStore: embeddings deserialization error: {e}"
+                        );
+                        None
                     }
+                },
+                Err(e) => {
+                    self.deser_error_count
+                        .fetch_add(1, AtomicOrdering::Relaxed);
+                    eprintln!("⚠️ NeumannStore: sled iteration error (embeddings): {e}");
+                    None
                 }
-            }
-        }
-
-        // Restore files
-        if let Ok(tree) = db.open_tree("files") {
-            let mut files = self.files.write().expect("files");
-            let mut blobs = self.blobs.write().expect("blobs");
-            for item in tree.iter() {
-                if let Ok((_, v)) = item {
-                    if let Ok(file) = serde_json::from_slice::<FileRecord>(&v) {
-                        blobs.insert(file.blob.clone(), true);
-                        files.insert(file.id.clone(), file);
+            })
+            .collect();
+        let semantic_triples = self
+            .semantic_triples
+            .iter()
+            .values()
+            .filter_map(|v| match v {
+                Ok(bytes) => match serde_json::from_slice::<StoredSemanticTriple>(&bytes) {
+                    Ok(record) => Some(SemanticTriple::from(record)),
+                    Err(e) => {
+                        self.deser_error_count
+                            .fetch_add(1, AtomicOrdering::Relaxed);
+                        eprintln!(
+                            "⚠️ NeumannStore: semantic_triples deserialization error: {e}"
+                        );
+                        None
                     }
+                },
+                Err(e) => {
+                    self.deser_error_count
+                        .fetch_add(1, AtomicOrdering::Relaxed);
+                    eprintln!(
+                        "⚠️ NeumannStore: sled iteration error (semantic_triples): {e}"
+                    );
+                    None
                 }
-            }
+            })
+            .collect();
+        StoreSnapshot {
+            files: self.files.read().expect("files").values().cloned().collect(),
+            symbols: self.symbols.read().expect("symbols").values().cloned().collect(),
+            embeddings,
+            facts: self.facts.read().expect("facts").clone(),
+            edges: self.edges.read().expect("edges").clone(),
+            semantic_triples,
         }
-
-        // Restore facts
-        if let Ok(tree) = db.open_tree("facts") {
-            let mut facts = self.facts.write().expect("facts");
-            for item in tree.iter() {
-                if let Ok((_, v)) = item {
-                    if let Ok(fact) = serde_json::from_slice::<FactRecord>(&v) {
-                        facts.push(fact);
-                    }
-                }
-            }
-        }
-
-        // Restore edges
-        if let Ok(tree) = db.open_tree("edges") {
-            let mut edges = self.edges.write().expect("edges");
-            for item in tree.iter() {
-                if let Ok((_, v)) = item {
-                    if let Ok(edge) = serde_json::from_slice::<EdgeRecord>(&v) {
-                        edges.push(edge);
-                    }
-                }
-            }
-        }
-
-        // Restore embeddings
-        if let Ok(tree) = db.open_tree("embeddings") {
-            let mut embeddings = self.embeddings.write().expect("embeddings");
-            let mut blobs = self.blobs.write().expect("blobs");
-            for item in tree.iter() {
-                if let Ok((_, v)) = item {
-                    if let Ok(stored) = serde_json::from_slice::<StoredEmbedding>(&v) {
-                        blobs.insert(stored.source_blob.clone(), true);
-                        let record: EmbeddingRecord = stored.into();
-                        embeddings.insert(record.id.clone(), record);
-                    }
-                }
-            }
-        }
-
-        Ok(())
     }
 
     pub fn ontology_classes(&self) -> Vec<String> {
@@ -385,14 +370,7 @@ impl KnowledgeStore for NeumannStore {
     }
 
     async fn upsert_file(&self, file: FileRecord) -> Result<()> {
-        if let Some(db) = &self.db {
-            let tree = db.open_tree("files")?;
-            tree.insert(file.id.as_bytes(), serde_json::to_vec(&file)?)?;
-        }
-        self.blobs
-            .write()
-            .expect("blobs")
-            .insert(file.blob.clone(), true);
+        self.blobs.insert(file.blob.as_bytes(), &[1])?;
         self.files
             .write()
             .expect("files")
@@ -419,11 +397,6 @@ impl KnowledgeStore for NeumannStore {
                     && candidate.predicate == fact.predicate
                     && candidate.object == fact.object
             }) {
-                if let Some(db) = &self.db {
-                    let tree = db.open_tree("facts")?;
-                    let key = format!("{}::{}::{}", fact.subject, fact.predicate, stored.len());
-                    tree.insert(key.as_bytes(), serde_json::to_vec(&fact)?)?;
-                }
                 stored.push(fact);
             }
         }
@@ -439,17 +412,7 @@ impl KnowledgeStore for NeumannStore {
                     && candidate.kind == edge.kind
             }) {
                 existing.weight = edge.weight;
-                if let Some(db) = &self.db {
-                    let tree = db.open_tree("edges")?;
-                    let key = format!("{}::{}::{:?}", edge.from, edge.to, edge.kind);
-                    tree.insert(key.as_bytes(), serde_json::to_vec(existing)?)?;
-                }
             } else {
-                if let Some(db) = &self.db {
-                    let tree = db.open_tree("edges")?;
-                    let key = format!("{}::{}::{:?}", edge.from, edge.to, edge.kind);
-                    tree.insert(key.as_bytes(), serde_json::to_vec(&edge)?)?;
-                }
                 stored.push(edge);
             }
         }
@@ -458,13 +421,12 @@ impl KnowledgeStore for NeumannStore {
 
     async fn upsert_embeddings(&self, embeddings: Vec<EmbeddingRecord>) -> Result<()> {
         for emb in embeddings {
-            blobs.insert(emb.source_blob.clone(), true);
-            if let Some(db) = &self.db {
-                let tree = db.open_tree("embeddings")?;
-                let stored = StoredEmbedding::from(&emb);
-                tree.insert(emb.id.as_bytes(), serde_json::to_vec(&stored)?)?;
-            }
-            map.insert(emb.id.clone(), emb);
+            self.blobs.insert(emb.source_blob.as_bytes(), &[1])?;
+            let stored = StoredEmbeddingRecord::from(emb);
+            self.embeddings.insert(
+                stored.id.as_bytes(),
+                serde_json::to_vec(&stored)?,
+            )?;
         }
         self.db.flush()?;
         Ok(())
@@ -482,21 +444,37 @@ impl KnowledgeStore for NeumannStore {
             Ok(()) as Result<(), rio_turtle::TurtleError>
         })?;
 
-        if let Some(db) = &self.db {
-            let tree = db.open_tree("triples")?;
-            for triple in &parsed {
-                let key = format!(
-                    "{}::{}::{}::{}",
-                    triple.source, triple.subject, triple.predicate, triple.object
-                );
-                tree.insert(key.as_bytes(), serde_json::to_vec(triple)?)?;
+        for triple in parsed {
+            let stored = StoredSemanticTriple::from(triple);
+            let key = triple_key(&stored.subject, &stored.predicate, &stored.object);
+
+            if let Some(existing_bytes) = self.semantic_triples.get(&key)? {
+                // Merge provenance: keep a combined, de-duplicated list of sources
+                let mut existing: StoredSemanticTriple =
+                    serde_json::from_slice(&existing_bytes)?;
+
+                let new_source = &stored.source;
+                let already_present = existing
+                    .source
+                    .split(';')
+                    .any(|s| s == new_source);
+
+                if !already_present {
+                    if existing.source.is_empty() {
+                        existing.source = new_source.clone();
+                    } else {
+                        existing.source.push(';');
+                        existing.source.push_str(new_source);
+                    }
+                    self.semantic_triples
+                        .insert(&key, serde_json::to_vec(&existing)?)?;
+                }
+            } else {
+                self.semantic_triples
+                    .insert(&key, serde_json::to_vec(&stored)?)?;
             }
         }
-
-        self.semantic_triples
-            .write()
-            .expect("semantic_triples")
-            .extend(parsed);
+        self.db.flush()?;
         Ok(())
     }
 
@@ -529,13 +507,27 @@ impl KnowledgeStore for NeumannStore {
         }
 
         for item in self.semantic_triples.iter().values() {
-            if let Ok(bytes) = item {
-                if let Ok(triple) = serde_json::from_slice::<StoredSemanticTriple>(&bytes) {
-                    if triple.predicate == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
-                        && triple.object == "http://www.w3.org/2000/01/rdf-schema#Class"
-                    {
-                        push_unique(&mut classes, compact_term(&triple.subject));
+            match item {
+                Ok(bytes) => match serde_json::from_slice::<StoredSemanticTriple>(&bytes) {
+                    Ok(triple) => {
+                        if triple.predicate == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+                            && triple.object == "http://www.w3.org/2000/01/rdf-schema#Class"
+                        {
+                            push_unique(&mut classes, compact_term(&triple.subject));
+                        }
                     }
+                    Err(e) => {
+                        self.deser_error_count
+                            .fetch_add(1, AtomicOrdering::Relaxed);
+                        eprintln!(
+                            "⚠️ NeumannStore: list_classes deserialization error: {e}"
+                        );
+                    }
+                },
+                Err(e) => {
+                    self.deser_error_count
+                        .fetch_add(1, AtomicOrdering::Relaxed);
+                    eprintln!("⚠️ NeumannStore: sled iteration error (list_classes): {e}");
                 }
             }
         }
@@ -673,15 +665,23 @@ impl KnowledgeStore for NeumannStore {
     }
 
     async fn health(&self) -> Result<StoreHealth> {
-        let persistent = self.db.is_some();
-        Ok(StoreHealth {
-            healthy: true,
-            message: if persistent {
-                "ready (persistent)".to_string()
-            } else {
-                "ready (in-memory)".to_string()
-            },
-        })
+        let errors = self.deser_error_count.load(AtomicOrdering::Relaxed);
+        let path = resolve_data_path(&self.config);
+        if errors > 0 {
+            Ok(StoreHealth {
+                healthy: false,
+                message: format!(
+                    "degraded: {errors} deserialization/read error(s) detected — \
+                     DB may be corrupted or schema changed (path: {})",
+                    path.display()
+                ),
+            })
+        } else {
+            Ok(StoreHealth {
+                healthy: true,
+                message: format!("ready: {}", path.display()),
+            })
+        }
     }
 }
 
