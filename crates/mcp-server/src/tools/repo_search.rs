@@ -50,7 +50,7 @@ impl Tool for RepoSearchTool {
                 "expand": {
                     "type": "boolean",
                     "default": false,
-                    "description": "Include graph neighborhood edges for each hit"
+                    "description": "Include outgoing graph edges for each hit"
                 }
             },
             "required": ["query"]
