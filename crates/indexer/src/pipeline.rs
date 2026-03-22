@@ -15,8 +15,6 @@ use storage_neumann::{
 
 use crate::{chunking::chunk_text, embedding::Modality};
 
-const SYNTHETIC_MODULE_NAME: &str = "__module__";
-
 #[derive(Debug, Clone)]
 pub struct IntakeFile {
     pub path: String,
