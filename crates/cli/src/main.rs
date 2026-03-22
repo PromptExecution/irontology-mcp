@@ -125,7 +125,7 @@ fn build_runtime_bootstrap(
     validate_sources(&sources, &registries)?;
     let forwarder = build_forwarder(loaded.config.forwarding.transport_forwarding);
     let neumann = NeumannConfig::from(loaded.config.neumann.clone());
-    let store = Arc::new(NeumannStore::new(neumann.clone()));
+    let store = Arc::new(NeumannStore::try_new(neumann.clone())?);
     let backend: Arc<dyn SearchBackend + Send + Sync> =
         Arc::new(StoreBackedBackend::from_store(store.as_ref()));
     let executor: Arc<dyn AgentExecutor> =

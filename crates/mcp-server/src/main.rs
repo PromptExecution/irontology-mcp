@@ -19,8 +19,8 @@ use serde_json::Value;
 use std::sync::Arc;
 use tokio::signal::ctrl_c;
 
-use mcp_server::{McpServerRuntime, Phase2RuntimeConfig};
-use retrieval::StoreBackedBackend;
+use mcp_server::McpServerRuntime;
+use retrieval::{DeterministicBackend, NeumannBackend};
 use storage_neumann::{NeumannConfig, NeumannStore};
 
 /// The set of tools exposed through MCP list_tools and callable via call_tool.
@@ -38,12 +38,12 @@ pub struct IrontologyMcpServer {
 
 impl IrontologyMcpServer {
     pub async fn new() -> Result<Self> {
-        // 🤓 data_dir from env: NEUMANN_DATA_DIR (e.g. ~/.b00t/neumann/default)
-        let data_dir = std::env::var("NEUMANN_DATA_DIR").ok();
+        // 🤓 data_path from env: NEUMANN_DATA_DIR (e.g. ~/.b00t/neumann/default)
+        let data_path = std::env::var("NEUMANN_DATA_DIR").ok().map(Into::into);
         let config = NeumannConfig {
             endpoint: "http://localhost:7777".into(),
             namespace: "default".into(),
-            data_dir,
+            data_path,
         };
 
         // 🤓 NEUMANN_BACKEND=neumann → real embeddings (requires EMBEDDING_ENDPOINT)
@@ -53,7 +53,7 @@ impl IrontologyMcpServer {
             .unwrap_or(false);
 
         let runtime = if use_neumann {
-            let store = Arc::new(NeumannStore::new(config.clone()));
+            let store = Arc::new(NeumannStore::try_new(config.clone())?);
             let backend = Box::new(NeumannBackend::new(store));
             McpServerRuntime::start_phase2(backend, config).await?
         } else {

@@ -18,8 +18,6 @@ use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader
 use retrieval::SearchBackend;
 use storage_neumann::{config::NeumannConfig, KnowledgeStore, NeumannStore};
 
-use retrieval::EmbeddingClient;
-
 use crate::tools::{
     agent_forward_mcp::AgentForwardMcpTool, agent_run::AgentRunTool,
     ontology_list_classes::OntologyListClassesTool,
@@ -521,7 +519,7 @@ impl McpServerRuntime {
         backend: Box<dyn SearchBackend + Send + Sync>,
         config: Phase2RuntimeConfig,
     ) -> Result<Self> {
-        let store: Arc<dyn KnowledgeStore> = Arc::new(NeumannStore::new(config.neumann.clone()));
+        let store: Arc<dyn KnowledgeStore> = Arc::new(NeumannStore::try_new(config.neumann.clone())?);
         Self::start_phase2_with_store(backend, store, config).await
     }
 

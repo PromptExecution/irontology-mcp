@@ -1,7 +1,7 @@
 //! repo.index MCP tool — ingest text content into NeumannStore
 //!
 //! Used by b00t grok digest/learn to push content into irontology.
-//! Chunks content, embeds via EmbeddingClient, upserts embeddings + turtle triple.
+//! Chunks content, embeds via ModelProvider, upserts embeddings + turtle triple.
 //!
 //! Input:
 //!   content: string  — text to index
@@ -10,12 +10,12 @@
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
+use provider_api::{EmbedRequest, ModelProvider};
 use serde_json::{json, Value};
 use std::sync::Arc;
 
-use retrieval::EmbeddingClient;
 use storage_neumann::{
-    EmbeddingModality, EmbeddingRecord, KnowledgeStore, SemanticTriple,
+    EmbeddingModality, EmbeddingRecord, KnowledgeStore,
 };
 
 use crate::Tool;
@@ -30,12 +30,12 @@ pub const MAX_CHUNKS: usize = 256;
 
 pub struct RepoIndexTool {
     store: Arc<dyn KnowledgeStore>,
-    embedder: Arc<EmbeddingClient>,
+    provider: Arc<dyn ModelProvider>,
 }
 
 impl RepoIndexTool {
-    pub fn new(store: Arc<dyn KnowledgeStore>, embedder: Arc<EmbeddingClient>) -> Self {
-        Self { store, embedder }
+    pub fn new(store: Arc<dyn KnowledgeStore>, provider: Arc<dyn ModelProvider>) -> Self {
+        Self { store, provider }
     }
 }
 
@@ -73,6 +73,24 @@ impl Tool for RepoIndexTool {
             .get("content")
             .and_then(|v| v.as_str())
             .ok_or_else(|| anyhow!("content missing"))?;
+
+        // Validate content size before any further processing
+        if content.len() > MAX_CONTENT_BYTES {
+            return Err(anyhow!(
+                "content exceeds maximum allowed size ({} bytes)",
+                MAX_CONTENT_BYTES
+            ));
+        }
+
+        // Pre-check chunk count before embedding to fail fast
+        let chunks = chunk_text(content, CHUNK_SIZE, CHUNK_OVERLAP);
+        if chunks.len() > MAX_CHUNKS {
+            return Err(anyhow!(
+                "content exceeds the maximum number of chunks ({MAX_CHUNKS})"
+            ));
+        }
+        let chunk_count = chunks.len();
+
         let source = params
             .get("source")
             .and_then(|v| v.as_str())
@@ -82,23 +100,26 @@ impl Tool for RepoIndexTool {
             .and_then(|v| v.as_str())
             .unwrap_or("general");
 
-        // 1. Chunk the content
-        let chunks = chunk_text(content, CHUNK_SIZE, CHUNK_OVERLAP);
-        let chunk_count = chunks.len();
-
         // 2. Embed each chunk + upsert into NeumannStore
         let mut embeddings = Vec::new();
         for (i, chunk) in chunks.iter().enumerate() {
             let id = format!("{}::chunk::{}", source, i);
-            match self.embedder.embed(chunk).await {
-                Ok(vec) => {
-                    embeddings.push(EmbeddingRecord {
-                        id,
-                        source_blob: source.to_string(),
-                        vector: vec.into(),
-                        modality: EmbeddingModality::DocChunk,
-                        semantic_weight: 1.0,
-                    });
+            let req = EmbedRequest {
+                model: self.provider.model_id().to_string(),
+                inputs: vec![chunk.clone()],
+                batch_size: 1,
+            };
+            match self.provider.embed(req).await {
+                Ok(resp) => {
+                    if let Some(vec) = resp.vectors.into_iter().next() {
+                        embeddings.push(EmbeddingRecord {
+                            id,
+                            source_blob: source.to_string(),
+                            vector: vec,
+                            modality: EmbeddingModality::DocChunk,
+                            semantic_weight: 1.0,
+                        });
+                    }
                 }
                 Err(e) => {
                     eprintln!("⚠️ repo.index: embed chunk {i} failed: {e} (skipping)");
@@ -122,7 +143,7 @@ impl Tool for RepoIndexTool {
             "indexed": true,
             "source": source,
             "topic": topic,
-            "chunks": chunk_count,
+            "chunks_created": chunk_count,
             "embedded": embedded,
         }))
     }
