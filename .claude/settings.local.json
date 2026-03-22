@@ -4,7 +4,15 @@
       "WebSearch",
       "mcp__claude_ai_Hugging_Face__hf_doc_search",
       "mcp__claude_ai_Hugging_Face__hf_doc_fetch",
-      "Bash(git config:*)"
+      "Bash(git config:*)",
+      "Bash(cargo check:*)",
+      "Bash(cargo test:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(gh pr:*)",
+      "Bash(git fetch:*)",
+      "Bash(git merge:*)"
     ]
   }
 }

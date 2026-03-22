@@ -5,9 +5,17 @@ use orchestrator::{AgentRunResponse, StaticExecutor};
 use provider_test::FixtureProvider;
 use retrieval::{RankedResult, SearchBackend};
 use serde_json::json;
-use storage_neumann::{EdgeKind, EdgeRecord, FactRecord, KnowledgeStore, NeumannStore, SemanticQuery};
+use storage_neumann::{config::NeumannConfig, EdgeKind, EdgeRecord, FactRecord, KnowledgeStore, NeumannStore, SemanticQuery};
 use std::sync::Arc;
+use tempfile::{tempdir, TempDir};
 use uuid::Uuid;
+
+fn tmp_store() -> (TempDir, Arc<NeumannStore>) {
+    let dir = TempDir::new().expect("tempdir");
+    let config = NeumannConfig { data_path: Some(dir.path().to_path_buf()), ..Default::default() };
+    let store = Arc::new(NeumannStore::try_new(config).expect("open store"));
+    (dir, store)
+}
 
 struct FixedBackend;
 impl SearchBackend for FixedBackend {
@@ -30,7 +38,8 @@ impl SearchBackend for FixedBackend {
 
 #[tokio::test]
 async fn registry_contains_and_invokes_phase2_tools() {
-    let store: Arc<dyn KnowledgeStore> = Arc::new(NeumannStore::new(Default::default()));
+    let (_dir, store) = tmp_store();
+    let store: Arc<dyn KnowledgeStore> = store;
     let registry = ToolRegistry::with_phase2_tools(Box::new(FixedBackend), store);
 
     assert!(registry.has("repo.search"));
@@ -55,7 +64,7 @@ async fn registry_contains_and_invokes_phase2_tools() {
 
 #[tokio::test]
 async fn repo_search_enriches_hits_from_store_context() {
-    let store = Arc::new(NeumannStore::new(Default::default()));
+    let (_dir, store) = tmp_store();
     store
         .upsert_facts(vec![
             FactRecord {
@@ -110,7 +119,7 @@ async fn repo_search_enriches_hits_from_store_context() {
 
 #[tokio::test]
 async fn repo_read_symbol_resolves_store_state() {
-    let store = Arc::new(NeumannStore::new(Default::default()));
+    let (_dir, store) = tmp_store();
     store
         .upsert_facts(vec![
             FactRecord {
@@ -164,9 +173,10 @@ async fn registry_invokes_forward_mcp_tool_with_allowlist() {
         trace: vec!["tool:repo.search".to_string()],
         artifacts: vec!["artifact://run-1".to_string()],
     });
+    let (_dir, store) = tmp_store();
     let registry = ToolRegistry::with_phase2_tools_and_forwarder(
         Box::new(FixedBackend),
-        Arc::new(NeumannStore::new(Default::default())),
+        store,
         std::sync::Arc::new(forwarder.clone()),
     );
 
@@ -205,9 +215,10 @@ async fn registry_invokes_agent_run_tool() {
         answer: "bounded answer".to_string(),
         artifacts: vec!["artifact://run-1".to_string()],
     });
+    let (_dir, store) = tmp_store();
     let registry = ToolRegistry::with_phase2_tools_and_executor(
         Box::new(FixedBackend),
-        Arc::new(NeumannStore::new(Default::default())),
+        store,
         std::sync::Arc::new(executor.clone()),
     );
 
@@ -230,7 +241,9 @@ async fn registry_invokes_agent_run_tool() {
 
 #[tokio::test]
 async fn registry_invokes_repo_index_tool_and_persists_embeddings() {
-    let store: Arc<dyn KnowledgeStore> = Arc::new(NeumannStore::new(Default::default()));
+    let dir = tempdir().expect("tempdir");
+    let config = NeumannConfig { data_path: Some(dir.path().join("store")), ..Default::default() };
+    let store: Arc<dyn KnowledgeStore> = Arc::new(NeumannStore::try_new(config).expect("open store"));
     let provider = Arc::new(FixtureProvider::new("fixture-embed").with_embedding_dim(4));
     let registry =
         ToolRegistry::with_phase2_tools_and_provider(Box::new(FixedBackend), store.clone(), provider);
@@ -264,7 +277,9 @@ async fn registry_invokes_repo_index_tool_and_persists_embeddings() {
 async fn repo_index_rejects_oversized_content() {
     use mcp_server::tools::repo_index::{MAX_CONTENT_BYTES, MAX_CHUNKS};
 
-    let store: Arc<dyn KnowledgeStore> = Arc::new(NeumannStore::new(Default::default()));
+    let dir = tempdir().expect("tempdir");
+    let config = NeumannConfig { data_path: Some(dir.path().join("store")), ..Default::default() };
+    let store: Arc<dyn KnowledgeStore> = Arc::new(NeumannStore::try_new(config).expect("open store"));
     let provider = Arc::new(FixtureProvider::new("fixture-embed").with_embedding_dim(4));
     let registry =
         ToolRegistry::with_phase2_tools_and_provider(Box::new(FixedBackend), store.clone(), provider);

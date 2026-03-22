@@ -5,10 +5,12 @@ use storage_neumann::{
     config::NeumannConfig, EmbeddingModality, EmbeddingRecord, FactRecord, FileRecord,
     KnowledgeStore, NeumannStore, SemanticQuery, SymbolRecord,
 };
+use tempfile::tempdir;
 
 #[tokio::test]
 async fn neumann_store_contract_basics() {
-    let store = NeumannStore::new(NeumannConfig::default());
+    let dir = tempdir().expect("tempdir");
+    let store = NeumannStore::try_new(test_config(dir.path().join("basics"))).expect("open store");
 
     store
         .upsert_file(FileRecord {
@@ -109,7 +111,8 @@ async fn neumann_store_contract_basics() {
 
 #[tokio::test]
 async fn neumann_ingests_ontology_turtle_resources() {
-    let store = NeumannStore::new(NeumannConfig::default());
+    let dir = tempdir().expect("tempdir");
+    let store = NeumannStore::try_new(test_config(dir.path().join("ontology"))).expect("open store");
     let naming = r#"@prefix ex: <https://example.org/pe/> .
 @prefix oa: <http://www.w3.org/ns/oa#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
@@ -177,7 +180,8 @@ ex:SemanticAnchor a rdfs:Class ;
 
 #[tokio::test]
 async fn snapshot_includes_symbol_state_and_classes() {
-    let store = NeumannStore::new(NeumannConfig::default());
+    let dir = tempdir().expect("tempdir");
+    let store = NeumannStore::try_new(test_config(dir.path().join("snapshot"))).expect("open store");
     store
         .upsert_symbols(vec![SymbolRecord {
             id: "git:blob:blob-1:alpha".to_string(),
@@ -204,4 +208,12 @@ async fn snapshot_includes_symbol_state_and_classes() {
     let snapshot = store.snapshot();
     assert_eq!(snapshot.symbols.len(), 1);
     assert_eq!(snapshot.ontology_classes(), vec!["Function".to_string()]);
+}
+
+fn test_config(path: std::path::PathBuf) -> NeumannConfig {
+    NeumannConfig {
+        endpoint: "http://localhost:7777".to_string(),
+        namespace: "test".to_string(),
+        data_path: Some(path),
+    }
 }

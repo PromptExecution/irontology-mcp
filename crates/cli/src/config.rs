@@ -59,6 +59,7 @@ impl Default for ServerSettings {
 pub struct NeumannSettings {
     pub endpoint: String,
     pub namespace: String,
+    pub data_path: Option<String>,
 }
 
 impl Default for NeumannSettings {
@@ -67,6 +68,9 @@ impl Default for NeumannSettings {
         Self {
             endpoint: defaults.endpoint,
             namespace: defaults.namespace,
+            data_path: defaults
+                .data_path
+                .map(|path| path.display().to_string()),
         }
     }
 }
@@ -76,6 +80,7 @@ impl From<NeumannSettings> for NeumannConfig {
         Self {
             endpoint: value.endpoint,
             namespace: value.namespace,
+            data_path: value.data_path.map(Into::into),
         }
     }
 }

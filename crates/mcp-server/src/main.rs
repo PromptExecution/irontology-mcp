@@ -41,6 +41,7 @@ impl IrontologyMcpServer {
         let neumann = NeumannConfig {
             endpoint: "http://localhost:7777".into(),
             namespace: "default".into(),
+            data_path: None,
         };
         let store = Arc::new(NeumannStore::new(neumann.clone()));
         let backend = Box::new(StoreBackedBackend::from_store(store.as_ref()));
