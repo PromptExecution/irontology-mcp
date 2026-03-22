@@ -9,7 +9,7 @@
 //!   EMBEDDING_MODEL     — model name (default: nomic-embed-text)
 
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::json;
 
 const DEFAULT_ENDPOINT: &str = "http://localhost:8000";

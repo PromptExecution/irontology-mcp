@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use storage_neumann::{NeumannStore, SemanticQuery};
+use storage_neumann::{KnowledgeStore, NeumannStore, SemanticQuery};
 
 use crate::embed::EmbeddingClient;
-use crate::fusion::RankedResult;
+use crate::fusion::{RankedResult, SearchBackend};
 use crate::store_backend::DeterministicBackend;
 
 /// Real VectorBackend: embeds query, cosine-searches NeumannStore.

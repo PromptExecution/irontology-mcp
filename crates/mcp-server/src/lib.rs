@@ -18,8 +18,6 @@ use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader
 use retrieval::SearchBackend;
 use storage_neumann::{config::NeumannConfig, KnowledgeStore, NeumannStore};
 
-use retrieval::EmbeddingClient;
-
 use crate::tools::{
     agent_forward_mcp::AgentForwardMcpTool, agent_run::AgentRunTool,
     ontology_list_classes::OntologyListClassesTool,
