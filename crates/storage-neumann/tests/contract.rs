@@ -210,6 +210,75 @@ async fn snapshot_includes_symbol_state_and_classes() {
     assert_eq!(snapshot.ontology_classes(), vec!["Function".to_string()]);
 }
 
+#[tokio::test]
+async fn symbol_query_returns_deterministic_order() {
+    let dir = tempdir().expect("tempdir");
+    let store =
+        NeumannStore::try_new(test_config(dir.path().join("determinism"))).expect("open store");
+
+    // Insert symbols in an order that differs from the expected sorted output so
+    // that the test would fail if results were returned in insertion order.
+    store
+        .upsert_symbols(vec![
+            SymbolRecord {
+                id: "git:blob:blob-1:gamma".to_string(),
+                blob: "blob-1".to_string(),
+                path: "src/lib.rs".to_string(),
+                name: "gamma".to_string(),
+                kind: "Function".to_string(),
+                start_line: 20,
+                end_line: 22,
+                signature: None,
+                content: "fn gamma() {}".to_string(),
+            },
+            SymbolRecord {
+                id: "git:blob:blob-1:alpha".to_string(),
+                blob: "blob-1".to_string(),
+                path: "src/lib.rs".to_string(),
+                name: "alpha".to_string(),
+                kind: "Function".to_string(),
+                start_line: 1,
+                end_line: 3,
+                signature: None,
+                content: "fn alpha() {}".to_string(),
+            },
+            SymbolRecord {
+                id: "git:blob:blob-2:beta".to_string(),
+                blob: "blob-2".to_string(),
+                path: "src/other.rs".to_string(),
+                name: "beta".to_string(),
+                kind: "Function".to_string(),
+                start_line: 5,
+                end_line: 7,
+                signature: None,
+                content: "fn beta() {}".to_string(),
+            },
+        ])
+        .await
+        .expect("upsert symbols");
+
+    let result = store
+        .query(SemanticQuery::Symbols {
+            id: None,
+            path: None,
+            name: None,
+            kind: Some("Function".to_string()),
+        })
+        .await
+        .expect("symbol query");
+
+    // Results must be sorted by (path, start_line).
+    let ids: Vec<&str> = result.symbols.iter().map(|s| s.id.as_str()).collect();
+    assert_eq!(
+        ids,
+        vec![
+            "git:blob:blob-1:alpha",
+            "git:blob:blob-1:gamma",
+            "git:blob:blob-2:beta",
+        ]
+    );
+}
+
 fn test_config(path: std::path::PathBuf) -> NeumannConfig {
     NeumannConfig {
         endpoint: "http://localhost:7777".to_string(),
