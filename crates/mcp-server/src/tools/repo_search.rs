@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
+use futures::future::try_join_all;
 use serde_json::{json, Value};
 use storage_neumann::KnowledgeStore;
 
@@ -75,19 +76,23 @@ impl Tool for RepoSearchTool {
             self.backend.as_ref(),
         )?;
 
-        let mut enriched = Vec::with_capacity(results.len());
-        for result in results {
-            let context = resolve_symbol_context(self.store.as_ref(), &result.id, expand).await?;
-            enriched.push(json!({
-                "id": result.id,
-                "score": result.score,
-                "content": fact_text(&context.facts, &["content", "snippet", "summary", "text"]),
-                "location": fact_text(&context.facts, &["location", "path", "uri", "source"]),
-                "symbol_kind": fact_text(&context.facts, &["symbol_kind", "kind", "type"]),
-                "facts": facts_json(&context.facts),
-                "edges": if expand { Value::Array(edges_json(&context.edges)) } else { Value::Array(vec![]) },
-            }));
-        }
+        let futs = results.into_iter().map(|result| {
+            let store = Arc::clone(&self.store);
+            async move {
+                let context =
+                    resolve_symbol_context(store.as_ref(), &result.id, expand).await?;
+                Ok::<Value, anyhow::Error>(json!({
+                    "id": result.id,
+                    "score": result.score,
+                    "content": fact_text(&context.facts, &["content", "snippet", "summary", "text"]),
+                    "location": fact_text(&context.facts, &["location", "path", "uri", "source"]),
+                    "symbol_kind": fact_text(&context.facts, &["symbol_kind", "kind", "type"]),
+                    "facts": facts_json(&context.facts),
+                    "edges": if expand { Value::Array(edges_json(&context.edges)) } else { Value::Array(vec![]) },
+                }))
+            }
+        });
+        let enriched = try_join_all(futs).await?;
 
         Ok(json!({ "results": enriched }))
     }
