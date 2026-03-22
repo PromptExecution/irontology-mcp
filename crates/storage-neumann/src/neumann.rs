@@ -539,29 +539,35 @@ impl KnowledgeStore for NeumannStore {
                 name,
                 kind,
             } => Ok(QueryResult {
-                symbols: self
-                    .symbols
-                    .read()
-                    .expect("symbols")
-                    .values()
-                    .filter(|symbol| match id.as_ref() {
-                        Some(candidate) => &symbol.id == candidate,
-                        None => true,
-                    })
-                    .filter(|symbol| match path.as_ref() {
-                        Some(candidate) => symbol.path == *candidate,
-                        None => true,
-                    })
-                    .filter(|symbol| match name.as_ref() {
-                        Some(candidate) => symbol.name == *candidate,
-                        None => true,
-                    })
-                    .filter(|symbol| match kind.as_ref() {
-                        Some(candidate) => symbol.kind == *candidate,
-                        None => true,
-                    })
-                    .cloned()
-                    .collect(),
+                symbols: {
+                    let mut results: Vec<_> = self
+                        .symbols
+                        .read()
+                        .expect("symbols")
+                        .values()
+                        .filter(|symbol| match id.as_ref() {
+                            Some(candidate) => &symbol.id == candidate,
+                            None => true,
+                        })
+                        .filter(|symbol| match path.as_ref() {
+                            Some(candidate) => symbol.path == *candidate,
+                            None => true,
+                        })
+                        .filter(|symbol| match name.as_ref() {
+                            Some(candidate) => symbol.name == *candidate,
+                            None => true,
+                        })
+                        .filter(|symbol| match kind.as_ref() {
+                            Some(candidate) => symbol.kind == *candidate,
+                            None => true,
+                        })
+                        .cloned()
+                        .collect();
+                    results.sort_by(|a, b| {
+                        a.path.cmp(&b.path).then(a.start_line.cmp(&b.start_line))
+                    });
+                    results
+                },
                 ..QueryResult::default()
             }),
             SemanticQuery::Facts { subject, predicate } => Ok(QueryResult {
