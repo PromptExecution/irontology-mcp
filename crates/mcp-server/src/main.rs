@@ -8,13 +8,15 @@ use rmcp::{
     handler::server::ServerHandler,
     model::{
         CallToolRequestParam, CallToolResult, Content, ErrorData, Implementation,
-        ListToolsResult, PaginatedRequestParam, ProtocolVersion, RequestContext,
-        ServerCapabilities, ServerInfo, ToolDescription,
+        JsonObject, ListToolsResult, PaginatedRequestParam, ProtocolVersion,
+        ServerCapabilities, ServerInfo, Tool,
     },
+    service::{RequestContext, RoleServer},
     transport::io::stdio,
-    RoleServer, ServiceExt,
+    ServiceExt,
 };
 use serde_json::Value;
+use std::sync::Arc;
 use tokio::signal::ctrl_c;
 
 use mcp_server::McpServerRuntime;
@@ -39,7 +41,6 @@ impl IrontologyMcpServer {
     }
 }
 
-#[async_trait::async_trait]
 impl ServerHandler for IrontologyMcpServer {
     async fn ping(&self, _context: RequestContext<RoleServer>) -> Result<(), ErrorData> {
         Ok(())
@@ -51,6 +52,7 @@ impl ServerHandler for IrontologyMcpServer {
             server_info: Implementation {
                 name: "irontology-mcp".into(),
                 version: "0.1.0".into(),
+                ..Default::default()
             },
             instructions: Some(
                 "irontology-mcp: semantic graph/RAG MCP server. \
@@ -70,14 +72,23 @@ impl ServerHandler for IrontologyMcpServer {
     ) -> Result<ListToolsResult, ErrorData> {
         let mut tools = Vec::new();
 
-        let tool_names = ["repo.search", "repo.read_symbol", "ontology.list_classes", "ontology.related_resources"];
+        let tool_names = [
+            "repo.search",
+            "repo.read_symbol",
+            "ontology.list_classes",
+            "ontology.related_resources",
+        ];
         for name in &tool_names {
             if let Some(tool) = self.runtime.tools.get(name) {
-                tools.push(ToolDescription {
-                    name: tool.name().into(),
-                    description: tool.description().into(),
-                    input_schema: tool.input_schema(),
-                });
+                let schema: Arc<JsonObject> = match tool.input_schema() {
+                    Value::Object(map) => Arc::new(map),
+                    _ => Arc::new(serde_json::Map::new()),
+                };
+                tools.push(Tool::new(
+                    tool.name().to_string(),
+                    tool.description().to_string(),
+                    schema,
+                ));
             }
         }
 
@@ -97,21 +108,19 @@ impl ServerHandler for IrontologyMcpServer {
 
         if let Some(tool) = self.runtime.tools.get(tool_name) {
             match tool.call(params).await {
-                Ok(result) => {
-                    Ok(CallToolResult::success(vec![Content::text(
-                        result.to_string(),
-                    )]))
-                }
-                Err(e) => {
-                    Ok(CallToolResult::success(vec![Content::text(
-                        format!("Error: {}", e),
-                    )]))
-                }
+                Ok(result) => Ok(CallToolResult::success(vec![Content::text(
+                    result.to_string(),
+                )])),
+                Err(e) => Ok(CallToolResult::success(vec![Content::text(format!(
+                    "Error: {}",
+                    e
+                ))])),
             }
         } else {
-            Ok(CallToolResult::success(vec![Content::text(
-                format!("Tool {} not found", tool_name),
-            )]))
+            Ok(CallToolResult::success(vec![Content::text(format!(
+                "Tool {} not found",
+                tool_name
+            ))]))
         }
     }
 }
