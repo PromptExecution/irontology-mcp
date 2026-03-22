@@ -445,8 +445,14 @@ impl NeumannStore {
         }
 
         if failures > 0 {
+            let path_hint = self
+                ._config
+                .data_path
+                .as_ref()
+                .map(|p| format!(" at '{}'", p.display()))
+                .unwrap_or_default();
             return Err(anyhow!(
-                "{failures} record(s) failed to restore from sled; \
+                "{failures} record(s) failed to restore from sled{path_hint}; \
                  the database may be corrupted or the schema has changed. \
                  Inspect and repair the sled DB at the configured data_path."
             ));

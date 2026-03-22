@@ -125,7 +125,7 @@ impl Tool for RepoIndexTool {
                     embeddings.push(EmbeddingRecord {
                         id,
                         source_blob: source.to_string(),
-                        vector: resp.vectors.into_iter().next().unwrap(),
+                        vector: resp.vectors.into_iter().next().expect("vectors is non-empty; checked above"),
                         modality: EmbeddingModality::DocChunk,
                         semantic_weight: 1.0,
                     });
@@ -172,14 +172,14 @@ impl Tool for RepoIndexTool {
 /// it is returned unchanged.  Otherwise, the value is percent-encoded and
 /// placed in a `urn:b00t:resource:` URN to prevent Turtle injection.
 fn to_safe_iri(s: &str) -> String {
-    let has_safe_scheme = s.contains("://")
-        && s.find("://")
-            .map(|end| {
-                s[..end]
-                    .chars()
-                    .all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.'))
-            })
-            .unwrap_or(false);
+    let has_safe_scheme = s
+        .find("://")
+        .map(|end| {
+            s[..end]
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.'))
+        })
+        .unwrap_or(false);
 
     // Characters that are illegal inside a Turtle <...> IRI reference:
     let has_illegal = s
