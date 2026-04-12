@@ -11,8 +11,8 @@ pub use pipeline::{
 };
 pub use provider_api::{EmbedRequest, EmbedResponse, ModelProvider};
 pub use storage_neumann::{
-    EdgeKind, EdgeRecord, EmbeddingModality, EmbeddingRecord, FactRecord, FileRecord,
-    KnowledgeStore, SemanticQuery, StoreHealth,
+    AnchorRecord, ArtifactRecord, EdgeKind, EdgeRecord, EmbeddingModality, EmbeddingRecord,
+    FactRecord, FileRecord, KnowledgeStore, ObservationRecord, SemanticQuery, StoreHealth,
 };
 pub use watcher::{
     reindex_changed_paths, run_poll_loop, run_watchexec, spawn_poller, spawn_watchexec,
