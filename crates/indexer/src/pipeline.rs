@@ -10,7 +10,8 @@ use domain::{Claim, Relation};
 use provider_api::{EmbedRequest, ModelProvider};
 use serde_json::json;
 use storage_neumann::{
-    EdgeKind, EdgeRecord, EmbeddingRecord, FactRecord, FileRecord, KnowledgeStore, SymbolRecord,
+    ArtifactRecord, EdgeKind, EdgeRecord, EmbeddingRecord, FactRecord, FileRecord, KnowledgeStore,
+    SymbolRecord,
 };
 
 use crate::{chunking::chunk_text, embedding::Modality};
@@ -134,6 +135,27 @@ pub async fn index_intake_file(
                 .map(|meta| meta.len())
                 .unwrap_or_default(),
             commit: blob_id.clone(),
+        })
+        .await?;
+    store
+        .upsert_artifact(ArtifactRecord {
+            id: file_id.clone(),
+            source_uri: intake
+                .source_id
+                .clone()
+                .unwrap_or_else(|| intake.path.clone()),
+            source_kind: intake.source_kind.clone().unwrap_or_default(),
+            artifact_kind: intake
+                .class
+                .clone()
+                .or_else(|| extraction.class.clone())
+                .unwrap_or_default(),
+            title: intake.tags.get("title").cloned(),
+            locator: intake.path.clone(),
+            media_type: Some(intake.media_type.clone()),
+            content_sha256: blob_id.clone(),
+            valid_at: intake.tags.get("valid_at").cloned(),
+            observed_at: None,
         })
         .await?;
     let mut facts = vec![
@@ -299,6 +321,8 @@ pub async fn index_intake_file(
                 vector,
                 modality: Modality::CodeSymbol,
                 semantic_weight: 1.0,
+                anchor_id: None,
+                artifact_locator: Some(intake.path.clone()),
             });
         }
         store.upsert_embeddings(records).await?;
@@ -311,6 +335,8 @@ pub async fn index_intake_file(
             vector,
             modality: embedding_modality,
             semantic_weight: 1.0,
+            anchor_id: None,
+            artifact_locator: Some(intake.path.clone()),
         });
     }
     store.upsert_embeddings(records).await?;

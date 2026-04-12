@@ -81,9 +81,16 @@ impl Tool for RepoSearchTool {
             async move {
                 let context =
                     resolve_symbol_context(store.as_ref(), &result.id, expand).await?;
+                let citation = match (&result.anchor_locator, &result.artifact_uri) {
+                    (Some(locator), Some(uri)) => Some(format!("{locator} — {uri}")),
+                    (Some(locator), None) => Some(locator.clone()),
+                    _ => None,
+                };
                 Ok::<Value, anyhow::Error>(json!({
                     "id": result.id,
                     "score": result.score,
+                    "citation": citation,
+                    "source": result.artifact_uri,
                     "content": fact_text(&context.facts, &["content", "snippet", "summary", "text"]),
                     "location": fact_text(&context.facts, &["location", "path", "uri", "source"]),
                     "symbol_kind": fact_text(&context.facts, &["symbol_kind", "kind", "type"]),

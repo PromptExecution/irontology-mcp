@@ -53,6 +53,10 @@ async fn neumann_store_contract_basics() {
                 vector: Arc::from([1.0_f32, 0.0_f32]),
                 modality: EmbeddingModality::CodeSymbol,
                 semantic_weight: 1.0,
+
+                anchor_id: None,
+
+                artifact_locator: None,
             },
             EmbeddingRecord {
                 id: "sym:b".to_string(),
@@ -60,6 +64,10 @@ async fn neumann_store_contract_basics() {
                 vector: Arc::from([0.0_f32, 1.0_f32]),
                 modality: EmbeddingModality::DocChunk,
                 semantic_weight: 1.0,
+
+                anchor_id: None,
+
+                artifact_locator: None,
             },
         ])
         .await

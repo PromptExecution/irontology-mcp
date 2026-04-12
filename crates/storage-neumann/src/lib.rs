@@ -3,7 +3,7 @@ pub mod neumann;
 
 pub use config::NeumannConfig;
 pub use neumann::{
-    EdgeKind, EdgeRecord, EmbeddingModality, EmbeddingRecord, FactRecord, FileRecord,
-    KnowledgeStore, NeumannStore, QueryResult, SemanticQuery, SemanticTriple, StoreHealth,
-    StoreSnapshot, SymbolRecord,
+    AnchorRecord, ArtifactRecord, EdgeKind, EdgeRecord, EmbeddingModality, EmbeddingRecord,
+    FactRecord, FileRecord, KnowledgeStore, NeumannStore, ObservationRecord, QueryResult,
+    SemanticQuery, SemanticTriple, StoreHealth, StoreSnapshot, SymbolRecord,
 };

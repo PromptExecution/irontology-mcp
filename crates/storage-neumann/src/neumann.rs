@@ -75,6 +75,41 @@ pub enum EmbeddingModality {
     TestCase,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ArtifactRecord {
+    pub id: String,
+    pub source_uri: String,
+    pub source_kind: String,
+    pub artifact_kind: String,
+    pub title: Option<String>,
+    pub locator: String,
+    pub media_type: Option<String>,
+    pub content_sha256: String,
+    pub valid_at: Option<String>,
+    pub observed_at: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AnchorRecord {
+    pub id: String,
+    pub artifact_id: String,
+    pub kind: String,
+    pub locator: String,
+    pub label: Option<String>,
+    pub byte_offset: Option<u64>,
+    pub char_offset: Option<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ObservationRecord {
+    pub id: String,
+    pub artifact_id: String,
+    pub anchor_id: Option<String>,
+    pub kind: String,
+    pub content: String,
+    pub confidence: f32,
+}
+
 #[derive(Debug, Clone)]
 pub struct EmbeddingRecord {
     pub id: String,
@@ -82,6 +117,8 @@ pub struct EmbeddingRecord {
     pub vector: Arc<[f32]>,
     pub modality: EmbeddingModality,
     pub semantic_weight: f32,
+    pub anchor_id: Option<String>,
+    pub artifact_locator: Option<String>,
 }
 
 /// Serde-compatible form of EmbeddingRecord (Vec<f32> instead of Arc<[f32]>)
@@ -92,6 +129,10 @@ struct StoredEmbedding {
     vector: Vec<f32>,
     modality: EmbeddingModality,
     semantic_weight: f32,
+    #[serde(default)]
+    anchor_id: Option<String>,
+    #[serde(default)]
+    artifact_locator: Option<String>,
 }
 
 impl From<&EmbeddingRecord> for StoredEmbedding {
@@ -102,6 +143,8 @@ impl From<&EmbeddingRecord> for StoredEmbedding {
             vector: r.vector.to_vec(),
             modality: r.modality,
             semantic_weight: r.semantic_weight,
+            anchor_id: r.anchor_id.clone(),
+            artifact_locator: r.artifact_locator.clone(),
         }
     }
 }
@@ -114,6 +157,8 @@ impl From<StoredEmbedding> for EmbeddingRecord {
             vector: s.vector.into(),
             modality: s.modality,
             semantic_weight: s.semantic_weight,
+            anchor_id: s.anchor_id,
+            artifact_locator: s.artifact_locator,
         }
     }
 }
@@ -136,6 +181,9 @@ pub struct StoreSnapshot {
     pub facts: Vec<FactRecord>,
     pub edges: Vec<EdgeRecord>,
     pub semantic_triples: Vec<SemanticTriple>,
+    pub artifacts: Vec<ArtifactRecord>,
+    pub anchors: Vec<AnchorRecord>,
+    pub observations: Vec<ObservationRecord>,
 }
 
 impl StoreSnapshot {
@@ -229,6 +277,10 @@ pub trait KnowledgeStore: Send + Sync {
     async fn list_classes(&self) -> Result<Vec<String>>;
     async fn query(&self, q: SemanticQuery) -> Result<QueryResult>;
     async fn health(&self) -> Result<StoreHealth>;
+    async fn upsert_artifact(&self, artifact: ArtifactRecord) -> Result<()>;
+    async fn upsert_anchors(&self, anchors: Vec<AnchorRecord>) -> Result<()>;
+    async fn upsert_observations(&self, obs: Vec<ObservationRecord>) -> Result<()>;
+    async fn get_anchors_for(&self, artifact_id: &str) -> Result<Vec<AnchorRecord>>;
 }
 
 pub struct NeumannStore {
@@ -240,6 +292,9 @@ pub struct NeumannStore {
     facts: RwLock<Vec<FactRecord>>,
     edges: RwLock<Vec<EdgeRecord>>,
     semantic_triples: RwLock<Vec<SemanticTriple>>,
+    artifacts: RwLock<HashMap<String, ArtifactRecord>>,
+    anchors: RwLock<HashMap<String, AnchorRecord>>,
+    observations: RwLock<HashMap<String, ObservationRecord>>,
     /// Some(db) if data_path was set — write-through persistence via sled
     db: Option<Arc<sled::Db>>,
 }
@@ -267,6 +322,9 @@ impl NeumannStore {
             facts: RwLock::new(Vec::new()),
             edges: RwLock::new(Vec::new()),
             semantic_triples: RwLock::new(Vec::new()),
+            artifacts: RwLock::new(HashMap::new()),
+            anchors: RwLock::new(HashMap::new()),
+            observations: RwLock::new(HashMap::new()),
             db,
         };
 
@@ -444,6 +502,72 @@ impl NeumannStore {
             }
         }
 
+        // Restore artifacts
+        let tree = db.open_tree("artifacts")
+            .map_err(|e| anyhow!("cannot open 'artifacts' tree: {e}"))?;
+        {
+            let mut artifacts = self.artifacts.write().expect("artifacts");
+            for item in tree.iter() {
+                match item {
+                    Err(e) => {
+                        eprintln!("⚠️ NeumannStore: sled error reading artifact: {e}");
+                        failures += 1;
+                    }
+                    Ok((_, v)) => match serde_json::from_slice::<ArtifactRecord>(&v) {
+                        Ok(artifact) => { artifacts.insert(artifact.id.clone(), artifact); }
+                        Err(e) => {
+                            eprintln!("⚠️ NeumannStore: failed to deserialize artifact: {e}");
+                            failures += 1;
+                        }
+                    },
+                }
+            }
+        }
+
+        // Restore anchors
+        let tree = db.open_tree("anchors")
+            .map_err(|e| anyhow!("cannot open 'anchors' tree: {e}"))?;
+        {
+            let mut anchors = self.anchors.write().expect("anchors");
+            for item in tree.iter() {
+                match item {
+                    Err(e) => {
+                        eprintln!("⚠️ NeumannStore: sled error reading anchor: {e}");
+                        failures += 1;
+                    }
+                    Ok((_, v)) => match serde_json::from_slice::<AnchorRecord>(&v) {
+                        Ok(anchor) => { anchors.insert(anchor.id.clone(), anchor); }
+                        Err(e) => {
+                            eprintln!("⚠️ NeumannStore: failed to deserialize anchor: {e}");
+                            failures += 1;
+                        }
+                    },
+                }
+            }
+        }
+
+        // Restore observations
+        let tree = db.open_tree("observations")
+            .map_err(|e| anyhow!("cannot open 'observations' tree: {e}"))?;
+        {
+            let mut observations = self.observations.write().expect("observations");
+            for item in tree.iter() {
+                match item {
+                    Err(e) => {
+                        eprintln!("⚠️ NeumannStore: sled error reading observation: {e}");
+                        failures += 1;
+                    }
+                    Ok((_, v)) => match serde_json::from_slice::<ObservationRecord>(&v) {
+                        Ok(obs) => { observations.insert(obs.id.clone(), obs); }
+                        Err(e) => {
+                            eprintln!("⚠️ NeumannStore: failed to deserialize observation: {e}");
+                            failures += 1;
+                        }
+                    },
+                }
+            }
+        }
+
         if failures > 0 {
             let path_hint = self
                 ._config
@@ -492,6 +616,27 @@ impl NeumannStore {
                 .read()
                 .expect("semantic_triples")
                 .clone(),
+            artifacts: self
+                .artifacts
+                .read()
+                .expect("artifacts")
+                .values()
+                .cloned()
+                .collect(),
+            anchors: self
+                .anchors
+                .read()
+                .expect("anchors")
+                .values()
+                .cloned()
+                .collect(),
+            observations: self
+                .observations
+                .read()
+                .expect("observations")
+                .values()
+                .cloned()
+                .collect(),
         }
     }
 
@@ -771,6 +916,56 @@ impl KnowledgeStore for NeumannStore {
                 "ready (in-memory)".to_string()
             },
         })
+    }
+
+    async fn upsert_artifact(&self, artifact: ArtifactRecord) -> Result<()> {
+        if let Some(db) = &self.db {
+            let tree = db.open_tree("artifacts")
+                .map_err(|e| anyhow!("cannot open 'artifacts' tree: {e}"))?;
+            tree.insert(artifact.id.as_bytes(), serde_json::to_vec(&artifact)?)?;
+        }
+        self.artifacts
+            .write()
+            .expect("artifacts")
+            .insert(artifact.id.clone(), artifact);
+        Ok(())
+    }
+
+    async fn upsert_anchors(&self, anchors: Vec<AnchorRecord>) -> Result<()> {
+        let mut stored = self.anchors.write().expect("anchors");
+        for anchor in anchors {
+            if let Some(db) = &self.db {
+                let tree = db.open_tree("anchors")
+                    .map_err(|e| anyhow!("cannot open 'anchors' tree: {e}"))?;
+                tree.insert(anchor.id.as_bytes(), serde_json::to_vec(&anchor)?)?;
+            }
+            stored.insert(anchor.id.clone(), anchor);
+        }
+        Ok(())
+    }
+
+    async fn upsert_observations(&self, obs: Vec<ObservationRecord>) -> Result<()> {
+        let mut stored = self.observations.write().expect("observations");
+        for observation in obs {
+            if let Some(db) = &self.db {
+                let tree = db.open_tree("observations")
+                    .map_err(|e| anyhow!("cannot open 'observations' tree: {e}"))?;
+                tree.insert(observation.id.as_bytes(), serde_json::to_vec(&observation)?)?;
+            }
+            stored.insert(observation.id.clone(), observation);
+        }
+        Ok(())
+    }
+
+    async fn get_anchors_for(&self, artifact_id: &str) -> Result<Vec<AnchorRecord>> {
+        Ok(self
+            .anchors
+            .read()
+            .expect("anchors")
+            .values()
+            .filter(|anchor| anchor.artifact_id == artifact_id)
+            .cloned()
+            .collect())
     }
 }
 
