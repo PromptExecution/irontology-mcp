@@ -8,8 +8,8 @@ use anyhow::Result;
 use rmcp::{
     handler::server::ServerHandler,
     model::{
-        CallToolRequestParam, CallToolResult, Content, Implementation, ListToolsResult,
-        PaginatedRequestParam, ProtocolVersion, ServerCapabilities, ServerInfo, Tool,
+        CallToolRequestParams, CallToolResult, Content, Implementation, ListToolsResult,
+        PaginatedRequestParams, ServerCapabilities, ServerInfo, Tool,
     },
     service::RequestContext,
     transport::io::stdio,
@@ -38,7 +38,7 @@ pub struct IrontologyMcpServer {
 
 impl IrontologyMcpServer {
     pub async fn new() -> Result<Self> {
-        // 🤓 data_path from env: NEUMANN_DATA_DIR (e.g. /home/user/.b00t/neumann/default)
+        // data_path from env: NEUMANN_DATA_DIR (e.g. /home/user/.b00t/neumann/default)
         // Note: ~ is not expanded automatically; set an absolute path in the env var.
         let data_path = std::env::var("NEUMANN_DATA_DIR").ok().map(Into::into);
         let config = NeumannConfig {
@@ -47,7 +47,7 @@ impl IrontologyMcpServer {
             data_path,
         };
 
-        // 🤓 NEUMANN_BACKEND=neumann → real embeddings (requires EMBEDDING_ENDPOINT)
+        // NEUMANN_BACKEND=neumann → real embeddings (requires EMBEDDING_ENDPOINT)
         //      default → DeterministicBackend (synthetic, no external deps)
         let use_neumann = std::env::var("NEUMANN_BACKEND")
             .map(|v| v == "neumann")
@@ -61,7 +61,7 @@ impl IrontologyMcpServer {
             let backend = Box::new(DeterministicBackend);
             McpServerRuntime::start_phase2(backend, config).await?
         };
-        eprintln!("✅ irontology-mcp: runtime initialized");
+        eprintln!("irontology-mcp: runtime initialized");
         Ok(Self { runtime })
     }
 }
@@ -75,27 +75,17 @@ impl ServerHandler for IrontologyMcpServer {
     }
 
     fn get_info(&self) -> ServerInfo {
-        ServerInfo {
-            protocol_version: ProtocolVersion::default(),
-            server_info: Implementation {
-                name: "irontology-mcp".into(),
-                version: "0.1.0".into(),
-                ..Default::default()
-            },
-            instructions: Some(
+        ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
+            .with_server_info(Implementation::new("irontology-mcp", "0.1.0"))
+            .with_instructions(
                 "irontology-mcp: semantic graph/RAG MCP server. \
-                 Phase 2: NeumannStore + 4-way fusion retrieval (vector 0.35, graph 0.30, lexical 0.20, ontology 0.15)."
-                    .into(),
-            ),
-            capabilities: ServerCapabilities::builder()
-                .enable_tools()
-                .build(),
-        }
+                 Phase 2: NeumannStore + 4-way fusion retrieval (vector 0.35, graph 0.30, lexical 0.20, ontology 0.15).",
+            )
     }
 
     fn list_tools(
         &self,
-        _request: Option<PaginatedRequestParam>,
+        _request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
     ) -> impl std::future::Future<Output = Result<ListToolsResult, McpError>> + Send + '_ {
         async move {
@@ -113,28 +103,21 @@ impl ServerHandler for IrontologyMcpServer {
                         }
                     };
 
-                    tools.push(Tool {
-                        name: tool.name().to_string().into(),
-                        title: None,
-                        description: Some(tool.description().to_string().into()),
+                    tools.push(Tool::new(
+                        tool.name().to_string(),
+                        tool.description().to_string(),
                         input_schema,
-                        output_schema: None,
-                        annotations: None,
-                        icons: None,
-                    });
+                    ));
                 }
             }
 
-            Ok(ListToolsResult {
-                tools,
-                next_cursor: None,
-            })
+            Ok(ListToolsResult::with_all_items(tools))
         }
     }
 
     fn call_tool(
         &self,
-        request: CallToolRequestParam,
+        request: CallToolRequestParams,
         _context: RequestContext<RoleServer>,
     ) -> impl std::future::Future<Output = Result<CallToolResult, McpError>> + Send + '_ {
         async move {
@@ -171,16 +154,16 @@ impl ServerHandler for IrontologyMcpServer {
 #[tokio::main]
 async fn main() -> Result<()> {
     let server = IrontologyMcpServer::new().await?;
-    eprintln!("📡 irontology-mcp: listening on stdio");
+    eprintln!("irontology-mcp: listening on stdio");
 
     let running_service = server.serve(stdio()).await?;
 
     tokio::select! {
         _ = ctrl_c() => {
-            eprintln!("🛑 irontology-mcp: shutdown");
+            eprintln!("irontology-mcp: shutdown");
         }
         _ = running_service.waiting() => {
-            eprintln!("🛑 irontology-mcp: client disconnected");
+            eprintln!("irontology-mcp: client disconnected");
         }
     }
 

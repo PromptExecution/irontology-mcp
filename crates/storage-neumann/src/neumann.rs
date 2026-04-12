@@ -6,11 +6,7 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use rio_api::{
-    model::{Literal, Subject, Term},
-    parser::TriplesParser,
-};
-use rio_turtle::TurtleParser;
+use oxttl::TurtleParser;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -598,15 +594,15 @@ impl KnowledgeStore for NeumannStore {
 
     async fn ingest_turtle(&self, source: &str, turtle: &str) -> Result<()> {
         let mut parsed = Vec::new();
-        TurtleParser::new(turtle.as_bytes(), None).parse_all(&mut |triple| {
+        for result in TurtleParser::new().for_reader(turtle.as_bytes()) {
+            let triple = result.map_err(|e| anyhow!("Turtle parse error: {e}"))?;
             parsed.push(SemanticTriple {
                 source: source.to_string(),
-                subject: subject_to_string(&triple.subject),
-                predicate: triple.predicate.iri.to_string(),
-                object: term_to_string(&triple.object),
+                subject: oxrdf_subject_to_string(&triple.subject),
+                predicate: triple.predicate.as_str().to_string(),
+                object: oxrdf_term_to_string(&triple.object),
             });
-            Ok(()) as Result<(), rio_turtle::TurtleError>
-        })?;
+        }
 
         if let Some(db) = &self.db {
             let tree = db.open_tree("triples")?;
@@ -792,27 +788,29 @@ fn cosine(a: &[f32], b: &[f32]) -> f32 {
     }
 }
 
-fn subject_to_string(subject: &Subject<'_>) -> String {
+fn oxrdf_subject_to_string(subject: &oxrdf::Subject) -> String {
     match subject {
-        Subject::NamedNode(node) => node.iri.to_string(),
-        Subject::BlankNode(node) => format!("_:{}", node.id),
-        Subject::Triple(_) => "<<embedded-subject>>".to_string(),
+        oxrdf::Subject::NamedNode(n) => n.as_str().to_string(),
+        oxrdf::Subject::BlankNode(b) => format!("_:{}", b.as_str()),
     }
 }
 
-fn term_to_string(term: &Term<'_>) -> String {
+fn oxrdf_term_to_string(term: &oxrdf::Term) -> String {
     match term {
-        Term::NamedNode(node) => node.iri.to_string(),
-        Term::BlankNode(node) => format!("_:{}", node.id),
-        Term::Literal(literal) => literal_to_string(literal),
-        Term::Triple(_) => "<<embedded-object>>".to_string(),
+        oxrdf::Term::NamedNode(n) => n.as_str().to_string(),
+        oxrdf::Term::BlankNode(b) => format!("_:{}", b.as_str()),
+        oxrdf::Term::Literal(lit) => oxrdf_literal_to_string(lit),
     }
 }
 
-fn literal_to_string(literal: &Literal<'_>) -> String {
-    match literal {
-        Literal::Simple { value } => value.to_string(),
-        Literal::LanguageTaggedString { value, .. } => value.to_string(),
-        Literal::Typed { value, datatype } => format!("{value}^^{}", datatype.iri),
+fn oxrdf_literal_to_string(lit: &oxrdf::Literal) -> String {
+    let dtype = lit.datatype().as_str();
+    // plain string and language-tagged: return lexical value only
+    if dtype == "http://www.w3.org/2001/XMLSchema#string"
+        || dtype == "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString"
+    {
+        lit.value().to_string()
+    } else {
+        format!("{}^^{}", lit.value(), dtype)
     }
 }
