@@ -312,16 +312,14 @@ impl StoreSnapshot {
 
         // Parse incoming turtle into (subject, predicate, object) tuples.
         let mut incoming: Vec<(String, String, String)> = Vec::new();
-        TurtleParser::new(turtle.as_bytes(), None)
-            .parse_all(&mut |triple| {
-                incoming.push((
-                    subject_to_string(&triple.subject),
-                    triple.predicate.iri.to_string(),
-                    term_to_string(&triple.object),
-                ));
-                Ok(()) as Result<(), rio_turtle::TurtleError>
-            })
-            .map_err(|e| anyhow!("turtle parse error: {e}"))?;
+        for result in TurtleParser::new().for_reader(turtle.as_bytes()) {
+            let triple = result.map_err(|e| anyhow!("turtle parse error: {e}"))?;
+            incoming.push((
+                oxrdf_subject_to_string(&triple.subject),
+                triple.predicate.as_str().to_string(),
+                oxrdf_term_to_string(&triple.object),
+            ));
+        }
 
         // Collect rdf:type assertions from the incoming document.
         let mut subject_types: HashMap<String, Vec<String>> = HashMap::new();
@@ -675,67 +673,49 @@ impl NeumannStore {
         }
 
         // Restore artifacts
-        let tree = db.open_tree("artifacts")
-            .map_err(|e| anyhow!("cannot open 'artifacts' tree: {e}"))?;
         {
+            let pairs = backend.scan("artifacts")
+                .map_err(|e| anyhow!("cannot scan 'artifacts' tree: {e}"))?;
             let mut artifacts = self.artifacts.write().expect("artifacts");
-            for item in tree.iter() {
-                match item {
+            for (_, v) in pairs {
+                match serde_json::from_slice::<ArtifactRecord>(&v) {
+                    Ok(artifact) => { artifacts.insert(artifact.id.clone(), artifact); }
                     Err(e) => {
-                        eprintln!("⚠️ NeumannStore: sled error reading artifact: {e}");
+                        eprintln!("⚠️ NeumannStore: failed to deserialize artifact: {e}");
                         failures += 1;
                     }
-                    Ok((_, v)) => match serde_json::from_slice::<ArtifactRecord>(&v) {
-                        Ok(artifact) => { artifacts.insert(artifact.id.clone(), artifact); }
-                        Err(e) => {
-                            eprintln!("⚠️ NeumannStore: failed to deserialize artifact: {e}");
-                            failures += 1;
-                        }
-                    },
                 }
             }
         }
 
         // Restore anchors
-        let tree = db.open_tree("anchors")
-            .map_err(|e| anyhow!("cannot open 'anchors' tree: {e}"))?;
         {
+            let pairs = backend.scan("anchors")
+                .map_err(|e| anyhow!("cannot scan 'anchors' tree: {e}"))?;
             let mut anchors = self.anchors.write().expect("anchors");
-            for item in tree.iter() {
-                match item {
+            for (_, v) in pairs {
+                match serde_json::from_slice::<AnchorRecord>(&v) {
+                    Ok(anchor) => { anchors.insert(anchor.id.clone(), anchor); }
                     Err(e) => {
-                        eprintln!("⚠️ NeumannStore: sled error reading anchor: {e}");
+                        eprintln!("⚠️ NeumannStore: failed to deserialize anchor: {e}");
                         failures += 1;
                     }
-                    Ok((_, v)) => match serde_json::from_slice::<AnchorRecord>(&v) {
-                        Ok(anchor) => { anchors.insert(anchor.id.clone(), anchor); }
-                        Err(e) => {
-                            eprintln!("⚠️ NeumannStore: failed to deserialize anchor: {e}");
-                            failures += 1;
-                        }
-                    },
                 }
             }
         }
 
         // Restore observations
-        let tree = db.open_tree("observations")
-            .map_err(|e| anyhow!("cannot open 'observations' tree: {e}"))?;
         {
+            let pairs = backend.scan("observations")
+                .map_err(|e| anyhow!("cannot scan 'observations' tree: {e}"))?;
             let mut observations = self.observations.write().expect("observations");
-            for item in tree.iter() {
-                match item {
+            for (_, v) in pairs {
+                match serde_json::from_slice::<ObservationRecord>(&v) {
+                    Ok(obs) => { observations.insert(obs.id.clone(), obs); }
                     Err(e) => {
-                        eprintln!("⚠️ NeumannStore: sled error reading observation: {e}");
+                        eprintln!("⚠️ NeumannStore: failed to deserialize observation: {e}");
                         failures += 1;
                     }
-                    Ok((_, v)) => match serde_json::from_slice::<ObservationRecord>(&v) {
-                        Ok(obs) => { observations.insert(obs.id.clone(), obs); }
-                        Err(e) => {
-                            eprintln!("⚠️ NeumannStore: failed to deserialize observation: {e}");
-                            failures += 1;
-                        }
-                    },
                 }
             }
         }

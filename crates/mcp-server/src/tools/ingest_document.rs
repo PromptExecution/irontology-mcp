@@ -313,6 +313,24 @@ mod tests {
         async fn health(&self) -> anyhow::Result<storage_neumann::StoreHealth> {
             Ok(storage_neumann::StoreHealth { healthy: true, message: String::new() })
         }
+        async fn validate_turtle(&self, _: &str) -> anyhow::Result<Vec<storage_neumann::ShapeViolation>> {
+            Ok(vec![])
+        }
+        async fn subclasses_of(&self, _: &str) -> anyhow::Result<Vec<String>> {
+            Ok(vec![])
+        }
+        async fn upsert_artifact(&self, _: storage_neumann::ArtifactRecord) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn upsert_anchors(&self, _: Vec<storage_neumann::AnchorRecord>) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn upsert_observations(&self, _: Vec<storage_neumann::ObservationRecord>) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn get_anchors_for(&self, _: &str) -> anyhow::Result<Vec<storage_neumann::AnchorRecord>> {
+            Ok(vec![])
+        }
     }
 
     #[tokio::test]
