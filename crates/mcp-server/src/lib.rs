@@ -20,6 +20,7 @@ use storage_neumann::{config::NeumannConfig, KnowledgeStore, NeumannStore};
 
 use crate::tools::{
     agent_forward_mcp::AgentForwardMcpTool, agent_run::AgentRunTool,
+    ingest_document::IngestDocumentTool,
     ontology_list_classes::OntologyListClassesTool,
     ontology_related_resources::OntologyRelatedResourcesTool,
     repo_index::RepoIndexTool,
@@ -129,9 +130,10 @@ impl ToolRegistry {
         let mut registry = Self::default();
         registry.register(Arc::new(RepoSearchTool::new(backend, store.clone())));
         registry.register(Arc::new(RepoReadSymbolTool::new(store.clone())));
-        registry.register(Arc::new(OntologyListClassesTool::new(store)));
+        registry.register(Arc::new(OntologyListClassesTool::new(store.clone())));
         registry.register(Arc::new(AgentForwardMcpTool::new(forwarder)));
         registry.register(Arc::new(AgentRunTool::new(executor)));
+        registry.register(Arc::new(IngestDocumentTool::new(store)));
         registry
     }
 
