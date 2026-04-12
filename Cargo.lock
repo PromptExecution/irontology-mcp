@@ -1033,6 +1033,7 @@ dependencies = [
  "dsl",
  "intake",
  "provider-api",
+ "regex",
  "serde",
  "serde_json",
  "storage-neumann",
