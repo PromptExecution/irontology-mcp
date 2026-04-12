@@ -7,3 +7,4 @@ pub use neumann::{
     KnowledgeStore, NeumannStore, QueryResult, SemanticQuery, SemanticTriple, StoreHealth,
     StoreSnapshot, SymbolRecord,
 };
+pub mod persistence;
