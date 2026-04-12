@@ -238,19 +238,40 @@ impl ExternalIngestionPipeline for DoclingPipeline {
     }
 }
 
-/// Write a stub temp file. In production this would contain the real artifact content.
-/// Since `Artifact` is a metadata struct (content is loaded separately by connectors),
-/// we create an empty temp file with the right extension as a path hint for docling.
+/// Materialize the artifact into a temp file for `docling`.
+/// Currently this pipeline supports artifacts whose locator is a readable file path.
+/// We copy the file into a temp file so the downstream CLI always receives real bytes.
 fn tempfile_for_artifact(artifact: &Artifact) -> anyhow::Result<tempfile::NamedTempFile> {
     use std::io::Write;
+
+    let source_path = std::path::Path::new(&artifact.locator);
+    if !source_path.is_file() {
+        return Err(anyhow!(
+            "artifact locator '{}' is not a readable file path; docling extraction requires a real document file",
+            artifact.locator
+        ));
+    }
 
     let suffix = extension_from_locator(&artifact.locator);
     let mut tmp = tempfile::Builder::new()
         .suffix(&suffix)
         .tempfile()
         .context("failed to create temp file")?;
-    // Write empty content; real integration would supply artifact bytes
-    tmp.write_all(b"").context("failed to write temp file")?;
+
+    let mut source = std::fs::File::open(source_path).with_context(|| {
+        format!(
+            "failed to open artifact source file '{}'",
+            source_path.display()
+        )
+    })?;
+
+    std::io::copy(&mut source, &mut tmp).with_context(|| {
+        format!(
+            "failed to copy artifact source file '{}' into temp file",
+            source_path.display()
+        )
+    })?;
+    tmp.flush().context("failed to flush temp file")?;
     Ok(tmp)
 }
 
