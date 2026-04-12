@@ -234,6 +234,11 @@ impl Tool for IngestDocumentTool {
             }
         }
 
+        self.store.upsert_artifact(artifact.clone()).await?;
+        self.store.upsert_anchors(bundle.anchors.clone()).await?;
+        self.store
+            .upsert_observations(bundle.observations.clone())
+            .await?;
         self.store.upsert_facts(facts).await?;
 
         Ok(json!({
