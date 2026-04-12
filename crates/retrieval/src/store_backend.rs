@@ -74,6 +74,21 @@ impl SearchBackend for DeterministicBackend {
 impl SearchBackend for StoreBackedBackend {
     fn search_vector(&self, query: &str, top_k: usize) -> Result<Vec<RankedResult>> {
         let terms = tokenize(query);
+
+        // Pre-build O(1) lookup maps to avoid O(|embeddings| * (|anchors|+|artifacts|)) scans.
+        let anchor_locator_by_id: HashMap<&str, &str> = self
+            .snapshot
+            .anchors
+            .iter()
+            .map(|a| (a.id.as_str(), a.locator.as_str()))
+            .collect();
+        let artifact_uri_by_locator: HashMap<&str, &str> = self
+            .snapshot
+            .artifacts
+            .iter()
+            .map(|a| (a.locator.as_str(), a.source_uri.as_str()))
+            .collect();
+
         let mut scored: Vec<_> = self
             .snapshot
             .embeddings
@@ -81,9 +96,23 @@ impl SearchBackend for StoreBackedBackend {
             .filter_map(|embedding| {
                 let query_vector = query_vector(&terms, embedding.vector.len());
                 let score = cosine(&embedding.vector, &query_vector) * embedding.semantic_weight.max(0.0);
-                (score > 0.0).then(|| RankedResult {
-                    id: embedding.id.clone(),
-                    score,
+                (score > 0.0).then(|| {
+                    let artifact_uri = embedding
+                        .artifact_locator
+                        .as_deref()
+                        .and_then(|locator| artifact_uri_by_locator.get(locator))
+                        .map(|s| s.to_string());
+                    let anchor_locator = embedding
+                        .anchor_id
+                        .as_deref()
+                        .and_then(|aid| anchor_locator_by_id.get(aid))
+                        .map(|s| s.to_string());
+                    RankedResult {
+                        id: embedding.id.clone(),
+                        score,
+                        anchor_locator,
+                        artifact_uri,
+                    }
                 })
             })
             .collect();
@@ -258,6 +287,8 @@ fn sample_snapshot() -> StoreSnapshot {
                 vector: std::sync::Arc::from([1.0_f32, 0.0_f32]),
                 modality: storage_neumann::EmbeddingModality::CodeSymbol,
                 semantic_weight: 1.0,
+                anchor_id: None,
+                artifact_locator: None,
             },
             storage_neumann::EmbeddingRecord {
                 id: "sym:beta".to_string(),
@@ -265,6 +296,8 @@ fn sample_snapshot() -> StoreSnapshot {
                 vector: std::sync::Arc::from([0.0_f32, 1.0_f32]),
                 modality: storage_neumann::EmbeddingModality::CodeSymbol,
                 semantic_weight: 1.0,
+                anchor_id: None,
+                artifact_locator: None,
             },
         ],
         facts: vec![storage_neumann::FactRecord {
@@ -284,6 +317,9 @@ fn sample_snapshot() -> StoreSnapshot {
             predicate: "http://www.w3.org/1999/02/22-rdf-syntax-ns#type".to_string(),
             object: "https://example.org/pe/Concept".to_string(),
         }],
+        artifacts: vec![],
+        anchors: vec![],
+        observations: vec![],
     }
 }
 
@@ -382,7 +418,12 @@ fn ranked(scores: HashMap<String, f32>, top_k: usize) -> Vec<RankedResult> {
     let mut out: Vec<_> = scores
         .into_iter()
         .filter(|(_, score)| *score > 0.0)
-        .map(|(id, score)| RankedResult { id, score })
+        .map(|(id, score)| RankedResult {
+            id,
+            score,
+            anchor_locator: None,
+            artifact_uri: None,
+        })
         .collect();
     sort_and_truncate(&mut out, top_k);
     out

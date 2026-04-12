@@ -15,6 +15,8 @@ impl SearchBackend for FixedBackend {
         Ok(vec![RankedResult {
             id: "alpha".into(),
             score: 0.9,
+            anchor_locator: None,
+            artifact_uri: None,
         }])
     }
 

@@ -1,7 +1,9 @@
 pub mod agent_forward_mcp;
 pub mod agent_run;
+pub mod ingest_document;
 pub mod ontology_list_classes;
 pub mod ontology_related_resources;
+pub mod ontology_validate;
 pub mod repo_index;
 pub mod repo_read_symbol;
 pub mod repo_search;

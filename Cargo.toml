@@ -21,6 +21,7 @@ members = [
   "crates/mcp-server",
   "crates/cli",
   "crates/semantic-runtime",
+  "crates/ingestion-pipeline",
 ]
 
 [workspace.package]

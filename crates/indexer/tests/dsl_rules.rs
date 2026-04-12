@@ -7,9 +7,10 @@ use anyhow::Result;
 use async_trait::async_trait;
 use dsl::compile_rule;
 use indexer::{
-    index_file, DslRuleMatcherAdapter, EdgeRecord, EmbedRequest, EmbedResponse, EmbeddingRecord,
-    Extraction, FactRecord, FileRecord, GitLedger, Handler, IntakeFile, KnowledgeStore,
-    ModelProvider, RuleMatcher, SemanticQuery, StoreHealth,
+    index_file, AnchorRecord, ArtifactRecord, DslRuleMatcherAdapter, EdgeRecord, EmbedRequest,
+    EmbedResponse, EmbeddingRecord, Extraction, FactRecord, FileRecord, GitLedger, Handler,
+    IntakeFile, KnowledgeStore, ModelProvider, ObservationRecord, RuleMatcher, SemanticQuery,
+    StoreHealth,
 };
 use provider_api::{ChatRequest, ChatResponse, ProviderHealth, TokenUsage};
 
@@ -79,6 +80,12 @@ impl KnowledgeStore for StoreProbe {
     async fn ingest_turtle(&self, _source: &str, _turtle: &str) -> Result<()> {
         Ok(())
     }
+    async fn validate_turtle(&self, _turtle: &str) -> Result<Vec<storage_neumann::ShapeViolation>> {
+        Ok(vec![])
+    }
+    async fn subclasses_of(&self, _class_iri: &str) -> Result<Vec<String>> {
+        Ok(vec![])
+    }
 
     async fn related_objects(&self, _subject: &str, _predicate: &str) -> Result<Vec<String>> {
         Ok(vec![])
@@ -97,6 +104,22 @@ impl KnowledgeStore for StoreProbe {
             healthy: true,
             message: "ok".to_string(),
         })
+    }
+
+    async fn upsert_artifact(&self, _artifact: ArtifactRecord) -> Result<()> {
+        Ok(())
+    }
+
+    async fn upsert_anchors(&self, _anchors: Vec<AnchorRecord>) -> Result<()> {
+        Ok(())
+    }
+
+    async fn upsert_observations(&self, _obs: Vec<ObservationRecord>) -> Result<()> {
+        Ok(())
+    }
+
+    async fn get_anchors_for(&self, _artifact_id: &str) -> Result<Vec<AnchorRecord>> {
+        Ok(vec![])
     }
 }
 

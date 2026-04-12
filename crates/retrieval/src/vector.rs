@@ -49,6 +49,8 @@ impl VectorBackend {
                     .map(|(i, id)| RankedResult {
                         id,
                         score: 1.0 / ((i + 1) as f32),
+                        anchor_locator: None,
+                        artifact_uri: None,
                     })
                     .collect())
             })

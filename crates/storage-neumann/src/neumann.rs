@@ -6,15 +6,12 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use rio_api::{
-    model::{Literal, Subject, Term},
-    parser::TriplesParser,
-};
-use rio_turtle::TurtleParser;
+use oxttl::TurtleParser;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::config::NeumannConfig;
+use crate::persistence::{PersistenceBackend, SledBackend};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FileRecord {
@@ -75,6 +72,41 @@ pub enum EmbeddingModality {
     TestCase,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ArtifactRecord {
+    pub id: String,
+    pub source_uri: String,
+    pub source_kind: String,
+    pub artifact_kind: String,
+    pub title: Option<String>,
+    pub locator: String,
+    pub media_type: Option<String>,
+    pub content_sha256: String,
+    pub valid_at: Option<String>,
+    pub observed_at: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AnchorRecord {
+    pub id: String,
+    pub artifact_id: String,
+    pub kind: String,
+    pub locator: String,
+    pub label: Option<String>,
+    pub byte_offset: Option<u64>,
+    pub char_offset: Option<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ObservationRecord {
+    pub id: String,
+    pub artifact_id: String,
+    pub anchor_id: Option<String>,
+    pub kind: String,
+    pub content: String,
+    pub confidence: f32,
+}
+
 #[derive(Debug, Clone)]
 pub struct EmbeddingRecord {
     pub id: String,
@@ -82,6 +114,8 @@ pub struct EmbeddingRecord {
     pub vector: Arc<[f32]>,
     pub modality: EmbeddingModality,
     pub semantic_weight: f32,
+    pub anchor_id: Option<String>,
+    pub artifact_locator: Option<String>,
 }
 
 /// Serde-compatible form of EmbeddingRecord (Vec<f32> instead of Arc<[f32]>)
@@ -92,6 +126,10 @@ struct StoredEmbedding {
     vector: Vec<f32>,
     modality: EmbeddingModality,
     semantic_weight: f32,
+    #[serde(default)]
+    anchor_id: Option<String>,
+    #[serde(default)]
+    artifact_locator: Option<String>,
 }
 
 impl From<&EmbeddingRecord> for StoredEmbedding {
@@ -102,6 +140,8 @@ impl From<&EmbeddingRecord> for StoredEmbedding {
             vector: r.vector.to_vec(),
             modality: r.modality,
             semantic_weight: r.semantic_weight,
+            anchor_id: r.anchor_id.clone(),
+            artifact_locator: r.artifact_locator.clone(),
         }
     }
 }
@@ -114,6 +154,8 @@ impl From<StoredEmbedding> for EmbeddingRecord {
             vector: s.vector.into(),
             modality: s.modality,
             semantic_weight: s.semantic_weight,
+            anchor_id: s.anchor_id,
+            artifact_locator: s.artifact_locator,
         }
     }
 }
@@ -126,6 +168,26 @@ pub struct SemanticTriple {
     pub object: String,
 }
 
+/// Severity of a SHACL-like shape validation violation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ViolationSeverity {
+    Violation,
+    Warning,
+    Info,
+}
+
+/// A single validation finding produced by `validate_turtle`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ShapeViolation {
+    /// The IRI/blank-node that failed validation.
+    pub subject: String,
+    /// The shape IRI that was evaluated.
+    pub shape: String,
+    /// Human-readable explanation.
+    pub message: String,
+    pub severity: ViolationSeverity,
+}
+
 /// A point-in-time snapshot of all in-memory NeumannStore state.
 /// Used by retrieval backends for pure-function search without taking locks.
 #[derive(Debug, Clone, Default)]
@@ -136,6 +198,9 @@ pub struct StoreSnapshot {
     pub facts: Vec<FactRecord>,
     pub edges: Vec<EdgeRecord>,
     pub semantic_triples: Vec<SemanticTriple>,
+    pub artifacts: Vec<ArtifactRecord>,
+    pub anchors: Vec<AnchorRecord>,
+    pub observations: Vec<ObservationRecord>,
 }
 
 impl StoreSnapshot {
@@ -172,6 +237,184 @@ impl StoreSnapshot {
         }
 
         classes.into_iter().collect()
+    }
+
+    /// Returns all direct and transitive subclasses of `class_iri`.
+    /// Scans `rdfs:subClassOf` triples where the *object* is `class_iri`.
+    pub fn subclasses_of(&self, class_iri: &str) -> Vec<String> {
+        const SUBCLASS_OF: &str = "http://www.w3.org/2000/01/rdf-schema#subClassOf";
+
+        // Build a reverse index: parent → Vec<child> to avoid O(|triples|) per BFS step.
+        let mut children_of: std::collections::HashMap<&str, Vec<&str>> =
+            std::collections::HashMap::new();
+        for triple in &self.semantic_triples {
+            if triple.predicate == SUBCLASS_OF {
+                children_of
+                    .entry(triple.object.as_str())
+                    .or_default()
+                    .push(triple.subject.as_str());
+            }
+        }
+
+        let mut result = Vec::new();
+        let mut queue: Vec<String> = vec![class_iri.to_string()];
+        let mut visited = std::collections::BTreeSet::new();
+        visited.insert(class_iri.to_string());
+
+        while !queue.is_empty() {
+            let mut next = Vec::new();
+            for parent in &queue {
+                if let Some(children) = children_of.get(parent.as_str()) {
+                    for child in children {
+                        if visited.insert((*child).to_string()) {
+                            result.push((*child).to_string());
+                            next.push((*child).to_string());
+                        }
+                    }
+                }
+            }
+            queue = next;
+        }
+        result
+    }
+
+    /// Returns all direct and transitive superclasses of `class_iri`.
+    /// Scans `rdfs:subClassOf` triples where the *subject* is `class_iri`.
+    pub fn superclasses_of(&self, class_iri: &str) -> Vec<String> {
+        const SUBCLASS_OF: &str = "http://www.w3.org/2000/01/rdf-schema#subClassOf";
+
+        // Build a forward index: child → Vec<parent> to avoid O(|triples|) per BFS step.
+        let mut parents_of: std::collections::HashMap<&str, Vec<&str>> =
+            std::collections::HashMap::new();
+        for triple in &self.semantic_triples {
+            if triple.predicate == SUBCLASS_OF {
+                parents_of
+                    .entry(triple.subject.as_str())
+                    .or_default()
+                    .push(triple.object.as_str());
+            }
+        }
+
+        let mut result = Vec::new();
+        let mut queue: Vec<String> = vec![class_iri.to_string()];
+        let mut visited = std::collections::BTreeSet::new();
+        visited.insert(class_iri.to_string());
+
+        while !queue.is_empty() {
+            let mut next = Vec::new();
+            for child in &queue {
+                if let Some(parents) = parents_of.get(child.as_str()) {
+                    for parent in parents {
+                        if visited.insert((*parent).to_string()) {
+                            result.push((*parent).to_string());
+                            next.push((*parent).to_string());
+                        }
+                    }
+                }
+            }
+            queue = next;
+        }
+        result
+    }
+
+    /// Validate Turtle RDF content against SHACL shapes ingested into this snapshot.
+    /// Currently checks `sh:minCount` constraints only.
+    pub fn validate_turtle_content(&self, turtle: &str) -> Result<Vec<ShapeViolation>> {
+        const SH_TARGET_CLASS: &str = "http://www.w3.org/ns/shacl#targetClass";
+        const SH_PROPERTY: &str = "http://www.w3.org/ns/shacl#property";
+        const SH_PATH: &str = "http://www.w3.org/ns/shacl#path";
+        const SH_MIN_COUNT: &str = "http://www.w3.org/ns/shacl#minCount";
+        const RDF_TYPE: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
+
+        // Parse incoming turtle into (subject, predicate, object) tuples.
+        let mut incoming: Vec<(String, String, String)> = Vec::new();
+        for result in TurtleParser::new().for_reader(turtle.as_bytes()) {
+            let triple = result.map_err(|e| anyhow!("turtle parse error: {e}"))?;
+            incoming.push((
+                oxrdf_subject_to_string(&triple.subject),
+                triple.predicate.as_str().to_string(),
+                oxrdf_term_to_string(&triple.object),
+            ));
+        }
+
+        // Collect rdf:type assertions from the incoming document.
+        let mut subject_types: HashMap<String, Vec<String>> = HashMap::new();
+        for (subj, pred, obj) in &incoming {
+            if pred == RDF_TYPE {
+                subject_types.entry(subj.clone()).or_default().push(obj.clone());
+            }
+        }
+
+        // Index shapes: shape_iri -> target class IRI.
+        let mut shape_target: HashMap<String, String> = HashMap::new();
+        for triple in &self.semantic_triples {
+            if triple.predicate == SH_TARGET_CLASS {
+                shape_target.insert(triple.subject.clone(), triple.object.clone());
+            }
+        }
+
+        let mut violations = Vec::new();
+
+        for (shape_iri, target_class) in &shape_target {
+            // Find blank-node property constraints attached to this shape.
+            let prop_nodes: Vec<String> = self
+                .semantic_triples
+                .iter()
+                .filter(|t| t.predicate == SH_PROPERTY && t.subject == *shape_iri)
+                .map(|t| t.object.clone())
+                .collect();
+
+            for prop_node in &prop_nodes {
+                let path_iri = self
+                    .semantic_triples
+                    .iter()
+                    .find(|t| t.predicate == SH_PATH && t.subject == *prop_node)
+                    .map(|t| t.object.clone());
+                let min_count_str = self
+                    .semantic_triples
+                    .iter()
+                    .find(|t| t.predicate == SH_MIN_COUNT && t.subject == *prop_node)
+                    .map(|t| t.object.clone());
+
+                let (path_iri, min_count) = match (path_iri, min_count_str) {
+                    (Some(p), Some(m)) => {
+                        // Value may be "1" or "1^^xsd:integer" etc.
+                        let n_str = m.split("^^").next().unwrap_or(&m).trim().to_string();
+                        match n_str.parse::<usize>() {
+                            Ok(n) => (p, n),
+                            Err(_) => continue,
+                        }
+                    }
+                    _ => continue,
+                };
+
+                if min_count == 0 {
+                    continue;
+                }
+
+                for (subject, types) in &subject_types {
+                    if !types.contains(target_class) {
+                        continue;
+                    }
+                    let count = incoming
+                        .iter()
+                        .filter(|(s, p, _)| s == subject && p == &path_iri)
+                        .count();
+                    if count < min_count {
+                        violations.push(ShapeViolation {
+                            subject: subject.clone(),
+                            shape: shape_iri.clone(),
+                            message: format!(
+                                "sh:minCount {min_count} violated for path <{path_iri}>: found {count} value(s)"
+                            ),
+                            severity: ViolationSeverity::Violation,
+                        });
+                    }
+                }
+            }
+        }
+
+        Ok(violations)
     }
 }
 
@@ -225,10 +468,19 @@ pub trait KnowledgeStore: Send + Sync {
     async fn upsert_edges(&self, edges: Vec<EdgeRecord>) -> Result<()>;
     async fn upsert_embeddings(&self, embeddings: Vec<EmbeddingRecord>) -> Result<()>;
     async fn ingest_turtle(&self, source: &str, turtle: &str) -> Result<()>;
+    /// Validate `turtle` RDF content against loaded SHACL shapes.
+    /// Returns a list of violations (empty list means the content conforms).
+    async fn validate_turtle(&self, turtle: &str) -> Result<Vec<ShapeViolation>>;
     async fn related_objects(&self, subject: &str, predicate: &str) -> Result<Vec<String>>;
     async fn list_classes(&self) -> Result<Vec<String>>;
+    /// Returns all direct and transitive subclasses of `class_iri` via rdfs:subClassOf.
+    async fn subclasses_of(&self, class_iri: &str) -> Result<Vec<String>>;
     async fn query(&self, q: SemanticQuery) -> Result<QueryResult>;
     async fn health(&self) -> Result<StoreHealth>;
+    async fn upsert_artifact(&self, artifact: ArtifactRecord) -> Result<()>;
+    async fn upsert_anchors(&self, anchors: Vec<AnchorRecord>) -> Result<()>;
+    async fn upsert_observations(&self, obs: Vec<ObservationRecord>) -> Result<()>;
+    async fn get_anchors_for(&self, artifact_id: &str) -> Result<Vec<AnchorRecord>>;
 }
 
 pub struct NeumannStore {
@@ -240,22 +492,38 @@ pub struct NeumannStore {
     facts: RwLock<Vec<FactRecord>>,
     edges: RwLock<Vec<EdgeRecord>>,
     semantic_triples: RwLock<Vec<SemanticTriple>>,
-    /// Some(db) if data_path was set — write-through persistence via sled
-    db: Option<Arc<sled::Db>>,
+    artifacts: RwLock<HashMap<String, ArtifactRecord>>,
+    anchors: RwLock<HashMap<String, AnchorRecord>>,
+    observations: RwLock<HashMap<String, ObservationRecord>>,
+    /// Some(backend) if data_path was set — write-through persistence via PersistenceBackend
+    backend: Option<Arc<dyn PersistenceBackend>>,
 }
 
 impl NeumannStore {
     /// Try to open (or create) a NeumannStore at `config.data_path`.
-    /// Returns `Err` if sled fails to open, allowing callers to fail fast
+    /// Returns `Err` if the persistence backend fails to open, allowing callers to fail fast
     /// rather than silently losing data.
     pub fn try_new(config: NeumannConfig) -> Result<Self> {
-        let db = if let Some(dir) = &config.data_path {
-            Some(Arc::new(
-                sled::open(dir)
-                    .map_err(|e| anyhow!("NeumannStore: failed to open sled at {}: {e}", dir.display()))?,
-            ))
-        } else {
-            None
+        Self::try_new_with_backend(config, None)
+    }
+
+    /// Try to open a NeumannStore with an explicit persistence backend.
+    /// Pass `None` for `backend` to let the store open a [`SledBackend`] from
+    /// `config.data_path`, or `Some(backend)` to inject a custom backend (useful
+    /// for tests or alternative storage engines).
+    pub fn try_new_with_backend(
+        config: NeumannConfig,
+        backend: Option<Arc<dyn PersistenceBackend>>,
+    ) -> Result<Self> {
+        let backend = match backend {
+            Some(b) => Some(b),
+            None => {
+                if let Some(dir) = &config.data_path {
+                    Some(Arc::new(SledBackend::open(dir)?) as Arc<dyn PersistenceBackend>)
+                } else {
+                    None
+                }
+            }
         };
 
         let mut store = Self {
@@ -267,11 +535,14 @@ impl NeumannStore {
             facts: RwLock::new(Vec::new()),
             edges: RwLock::new(Vec::new()),
             semantic_triples: RwLock::new(Vec::new()),
-            db,
+            artifacts: RwLock::new(HashMap::new()),
+            anchors: RwLock::new(HashMap::new()),
+            observations: RwLock::new(HashMap::new()),
+            backend,
         };
 
-        if store.db.is_some() {
-            store.restore_from_sled()?;
+        if store.backend.is_some() {
+            store.restore_from_backend()?;
         }
 
         Ok(store)
@@ -291,155 +562,176 @@ impl NeumannStore {
         }
     }
 
-    /// Restore in-memory state from sled.
-    /// Returns an error if any sled tree cannot be opened or if any
-    /// record fails to deserialize, so callers can detect corruption or
-    /// schema drift and remediate rather than silently operating on partial data.
-    fn restore_from_sled(&mut self) -> Result<()> {
-        let db = self.db.as_ref().expect("db must be Some when restore_from_sled is called");
+    /// Restore in-memory state from the persistence backend.
+    /// Returns an error if any tree cannot be scanned or if any record fails to
+    /// deserialize, so callers can detect corruption or schema drift and remediate
+    /// rather than silently operating on partial data.
+    fn restore_from_backend(&mut self) -> Result<()> {
+        let backend = self
+            .backend
+            .as_ref()
+            .expect("backend must be Some when restore_from_backend is called");
         let mut failures = 0usize;
 
         // Restore semantic triples
-        let tree = db.open_tree("triples")
-            .map_err(|e| anyhow!("cannot open 'triples' tree: {e}"))?;
         {
+            let pairs = backend
+                .scan("triples")
+                .map_err(|e| anyhow!("cannot scan 'triples' tree: {e}"))?;
             let mut triples = self.semantic_triples.write().expect("semantic_triples");
-            for item in tree.iter() {
-                match item {
+            for (_, v) in pairs {
+                match serde_json::from_slice::<SemanticTriple>(&v) {
+                    Ok(triple) => triples.push(triple),
                     Err(e) => {
-                        eprintln!("⚠️ NeumannStore: sled error reading triple: {e}");
+                        eprintln!("⚠️ NeumannStore: failed to deserialize triple: {e}");
                         failures += 1;
                     }
-                    Ok((_, v)) => match serde_json::from_slice::<SemanticTriple>(&v) {
-                        Ok(triple) => triples.push(triple),
-                        Err(e) => {
-                            eprintln!("⚠️ NeumannStore: failed to deserialize triple: {e}");
-                            failures += 1;
-                        }
-                    },
                 }
             }
         }
 
         // Restore files
-        let tree = db.open_tree("files")
-            .map_err(|e| anyhow!("cannot open 'files' tree: {e}"))?;
         {
+            let pairs = backend
+                .scan("files")
+                .map_err(|e| anyhow!("cannot scan 'files' tree: {e}"))?;
             let mut files = self.files.write().expect("files");
             let mut blobs = self.blobs.write().expect("blobs");
-            for item in tree.iter() {
-                match item {
+            for (_, v) in pairs {
+                match serde_json::from_slice::<FileRecord>(&v) {
+                    Ok(file) => {
+                        blobs.insert(file.blob.clone(), true);
+                        files.insert(file.id.clone(), file);
+                    }
                     Err(e) => {
-                        eprintln!("⚠️ NeumannStore: sled error reading file: {e}");
+                        eprintln!("⚠️ NeumannStore: failed to deserialize file: {e}");
                         failures += 1;
                     }
-                    Ok((_, v)) => match serde_json::from_slice::<FileRecord>(&v) {
-                        Ok(file) => {
-                            blobs.insert(file.blob.clone(), true);
-                            files.insert(file.id.clone(), file);
-                        }
-                        Err(e) => {
-                            eprintln!("⚠️ NeumannStore: failed to deserialize file: {e}");
-                            failures += 1;
-                        }
-                    },
                 }
             }
         }
 
         // Restore symbols
-        let tree = db.open_tree("symbols")
-            .map_err(|e| anyhow!("cannot open 'symbols' tree: {e}"))?;
         {
+            let pairs = backend
+                .scan("symbols")
+                .map_err(|e| anyhow!("cannot scan 'symbols' tree: {e}"))?;
             let mut symbols = self.symbols.write().expect("symbols");
             let mut blobs = self.blobs.write().expect("blobs");
-            for item in tree.iter() {
-                match item {
+            for (_, v) in pairs {
+                match serde_json::from_slice::<SymbolRecord>(&v) {
+                    Ok(symbol) => {
+                        blobs.insert(symbol.blob.clone(), true);
+                        symbols.insert(symbol.id.clone(), symbol);
+                    }
                     Err(e) => {
-                        eprintln!("⚠️ NeumannStore: sled error reading symbol: {e}");
+                        eprintln!("⚠️ NeumannStore: failed to deserialize symbol: {e}");
                         failures += 1;
                     }
-                    Ok((_, v)) => match serde_json::from_slice::<SymbolRecord>(&v) {
-                        Ok(symbol) => {
-                            blobs.insert(symbol.blob.clone(), true);
-                            symbols.insert(symbol.id.clone(), symbol);
-                        }
-                        Err(e) => {
-                            eprintln!("⚠️ NeumannStore: failed to deserialize symbol: {e}");
-                            failures += 1;
-                        }
-                    },
                 }
             }
         }
 
         // Restore facts
-        let tree = db.open_tree("facts")
-            .map_err(|e| anyhow!("cannot open 'facts' tree: {e}"))?;
         {
+            let pairs = backend
+                .scan("facts")
+                .map_err(|e| anyhow!("cannot scan 'facts' tree: {e}"))?;
             let mut facts = self.facts.write().expect("facts");
-            for item in tree.iter() {
-                match item {
+            for (_, v) in pairs {
+                match serde_json::from_slice::<FactRecord>(&v) {
+                    Ok(fact) => facts.push(fact),
                     Err(e) => {
-                        eprintln!("⚠️ NeumannStore: sled error reading fact: {e}");
+                        eprintln!("⚠️ NeumannStore: failed to deserialize fact: {e}");
                         failures += 1;
                     }
-                    Ok((_, v)) => match serde_json::from_slice::<FactRecord>(&v) {
-                        Ok(fact) => facts.push(fact),
-                        Err(e) => {
-                            eprintln!("⚠️ NeumannStore: failed to deserialize fact: {e}");
-                            failures += 1;
-                        }
-                    },
                 }
             }
         }
 
         // Restore edges
-        let tree = db.open_tree("edges")
-            .map_err(|e| anyhow!("cannot open 'edges' tree: {e}"))?;
         {
+            let pairs = backend
+                .scan("edges")
+                .map_err(|e| anyhow!("cannot scan 'edges' tree: {e}"))?;
             let mut edges = self.edges.write().expect("edges");
-            for item in tree.iter() {
-                match item {
+            for (_, v) in pairs {
+                match serde_json::from_slice::<EdgeRecord>(&v) {
+                    Ok(edge) => edges.push(edge),
                     Err(e) => {
-                        eprintln!("⚠️ NeumannStore: sled error reading edge: {e}");
+                        eprintln!("⚠️ NeumannStore: failed to deserialize edge: {e}");
                         failures += 1;
                     }
-                    Ok((_, v)) => match serde_json::from_slice::<EdgeRecord>(&v) {
-                        Ok(edge) => edges.push(edge),
-                        Err(e) => {
-                            eprintln!("⚠️ NeumannStore: failed to deserialize edge: {e}");
-                            failures += 1;
-                        }
-                    },
                 }
             }
         }
 
         // Restore embeddings
-        let tree = db.open_tree("embeddings")
-            .map_err(|e| anyhow!("cannot open 'embeddings' tree: {e}"))?;
         {
+            let pairs = backend
+                .scan("embeddings")
+                .map_err(|e| anyhow!("cannot scan 'embeddings' tree: {e}"))?;
             let mut embeddings = self.embeddings.write().expect("embeddings");
             let mut blobs = self.blobs.write().expect("blobs");
-            for item in tree.iter() {
-                match item {
+            for (_, v) in pairs {
+                match serde_json::from_slice::<StoredEmbedding>(&v) {
+                    Ok(stored) => {
+                        blobs.insert(stored.source_blob.clone(), true);
+                        let record: EmbeddingRecord = stored.into();
+                        embeddings.insert(record.id.clone(), record);
+                    }
                     Err(e) => {
-                        eprintln!("⚠️ NeumannStore: sled error reading embedding: {e}");
+                        eprintln!("⚠️ NeumannStore: failed to deserialize embedding: {e}");
                         failures += 1;
                     }
-                    Ok((_, v)) => match serde_json::from_slice::<StoredEmbedding>(&v) {
-                        Ok(stored) => {
-                            blobs.insert(stored.source_blob.clone(), true);
-                            let record: EmbeddingRecord = stored.into();
-                            embeddings.insert(record.id.clone(), record);
-                        }
-                        Err(e) => {
-                            eprintln!("⚠️ NeumannStore: failed to deserialize embedding: {e}");
-                            failures += 1;
-                        }
-                    },
+                }
+            }
+        }
+
+        // Restore artifacts
+        {
+            let pairs = backend.scan("artifacts")
+                .map_err(|e| anyhow!("cannot scan 'artifacts' tree: {e}"))?;
+            let mut artifacts = self.artifacts.write().expect("artifacts");
+            for (_, v) in pairs {
+                match serde_json::from_slice::<ArtifactRecord>(&v) {
+                    Ok(artifact) => { artifacts.insert(artifact.id.clone(), artifact); }
+                    Err(e) => {
+                        eprintln!("⚠️ NeumannStore: failed to deserialize artifact: {e}");
+                        failures += 1;
+                    }
+                }
+            }
+        }
+
+        // Restore anchors
+        {
+            let pairs = backend.scan("anchors")
+                .map_err(|e| anyhow!("cannot scan 'anchors' tree: {e}"))?;
+            let mut anchors = self.anchors.write().expect("anchors");
+            for (_, v) in pairs {
+                match serde_json::from_slice::<AnchorRecord>(&v) {
+                    Ok(anchor) => { anchors.insert(anchor.id.clone(), anchor); }
+                    Err(e) => {
+                        eprintln!("⚠️ NeumannStore: failed to deserialize anchor: {e}");
+                        failures += 1;
+                    }
+                }
+            }
+        }
+
+        // Restore observations
+        {
+            let pairs = backend.scan("observations")
+                .map_err(|e| anyhow!("cannot scan 'observations' tree: {e}"))?;
+            let mut observations = self.observations.write().expect("observations");
+            for (_, v) in pairs {
+                match serde_json::from_slice::<ObservationRecord>(&v) {
+                    Ok(obs) => { observations.insert(obs.id.clone(), obs); }
+                    Err(e) => {
+                        eprintln!("⚠️ NeumannStore: failed to deserialize observation: {e}");
+                        failures += 1;
+                    }
                 }
             }
         }
@@ -452,7 +744,7 @@ impl NeumannStore {
                 .map(|p| format!(" at '{}'", p.display()))
                 .unwrap_or_default();
             return Err(anyhow!(
-                "{failures} record(s) failed to restore from sled{path_hint}; \
+                "{failures} record(s) failed to restore from persistence backend{path_hint}; \
                  the database may be corrupted or the schema has changed. \
                  Inspect and repair the sled DB at the configured data_path."
             ));
@@ -492,6 +784,27 @@ impl NeumannStore {
                 .read()
                 .expect("semantic_triples")
                 .clone(),
+            artifacts: self
+                .artifacts
+                .read()
+                .expect("artifacts")
+                .values()
+                .cloned()
+                .collect(),
+            anchors: self
+                .anchors
+                .read()
+                .expect("anchors")
+                .values()
+                .cloned()
+                .collect(),
+            observations: self
+                .observations
+                .read()
+                .expect("observations")
+                .values()
+                .cloned()
+                .collect(),
         }
     }
 
@@ -507,9 +820,8 @@ impl KnowledgeStore for NeumannStore {
     }
 
     async fn upsert_file(&self, file: FileRecord) -> Result<()> {
-        if let Some(db) = &self.db {
-            let tree = db.open_tree("files")?;
-            tree.insert(file.id.as_bytes(), serde_json::to_vec(&file)?)?;
+        if let Some(backend) = &self.backend {
+            backend.upsert("files", file.id.as_bytes(), &serde_json::to_vec(&file)?)?;
         }
         self.blobs
             .write()
@@ -526,9 +838,8 @@ impl KnowledgeStore for NeumannStore {
         let mut stored = self.symbols.write().expect("symbols");
         let mut blobs = self.blobs.write().expect("blobs");
         for symbol in symbols {
-            if let Some(db) = &self.db {
-                let tree = db.open_tree("symbols")?;
-                tree.insert(symbol.id.as_bytes(), serde_json::to_vec(&symbol)?)?;
+            if let Some(backend) = &self.backend {
+                backend.upsert("symbols", symbol.id.as_bytes(), &serde_json::to_vec(&symbol)?)?;
             }
             blobs.insert(symbol.blob.clone(), true);
             stored.insert(symbol.id.clone(), symbol);
@@ -544,10 +855,9 @@ impl KnowledgeStore for NeumannStore {
                     && candidate.predicate == fact.predicate
                     && candidate.object == fact.object
             }) {
-                if let Some(db) = &self.db {
-                    let tree = db.open_tree("facts")?;
+                if let Some(backend) = &self.backend {
                     let key = format!("{}::{}::{}", fact.subject, fact.predicate, stored.len());
-                    tree.insert(key.as_bytes(), serde_json::to_vec(&fact)?)?;
+                    backend.upsert("facts", key.as_bytes(), &serde_json::to_vec(&fact)?)?;
                 }
                 stored.push(fact);
             }
@@ -564,16 +874,14 @@ impl KnowledgeStore for NeumannStore {
                     && candidate.kind == edge.kind
             }) {
                 existing.weight = edge.weight;
-                if let Some(db) = &self.db {
-                    let tree = db.open_tree("edges")?;
+                if let Some(backend) = &self.backend {
                     let key = format!("{}::{}::{:?}", edge.from, edge.to, edge.kind);
-                    tree.insert(key.as_bytes(), serde_json::to_vec(existing)?)?;
+                    backend.upsert("edges", key.as_bytes(), &serde_json::to_vec(existing)?)?;
                 }
             } else {
-                if let Some(db) = &self.db {
-                    let tree = db.open_tree("edges")?;
+                if let Some(backend) = &self.backend {
                     let key = format!("{}::{}::{:?}", edge.from, edge.to, edge.kind);
-                    tree.insert(key.as_bytes(), serde_json::to_vec(&edge)?)?;
+                    backend.upsert("edges", key.as_bytes(), &serde_json::to_vec(&edge)?)?;
                 }
                 stored.push(edge);
             }
@@ -586,10 +894,9 @@ impl KnowledgeStore for NeumannStore {
         let mut map = self.embeddings.write().expect("embeddings");
         for emb in embeddings {
             blobs.insert(emb.source_blob.clone(), true);
-            if let Some(db) = &self.db {
-                let tree = db.open_tree("embeddings")?;
+            if let Some(backend) = &self.backend {
                 let stored = StoredEmbedding::from(&emb);
-                tree.insert(emb.id.as_bytes(), serde_json::to_vec(&stored)?)?;
+                backend.upsert("embeddings", emb.id.as_bytes(), &serde_json::to_vec(&stored)?)?;
             }
             map.insert(emb.id.clone(), emb);
         }
@@ -598,24 +905,23 @@ impl KnowledgeStore for NeumannStore {
 
     async fn ingest_turtle(&self, source: &str, turtle: &str) -> Result<()> {
         let mut parsed = Vec::new();
-        TurtleParser::new(turtle.as_bytes(), None).parse_all(&mut |triple| {
+        for result in TurtleParser::new().for_reader(turtle.as_bytes()) {
+            let triple = result.map_err(|e| anyhow!("Turtle parse error: {e}"))?;
             parsed.push(SemanticTriple {
                 source: source.to_string(),
-                subject: subject_to_string(&triple.subject),
-                predicate: triple.predicate.iri.to_string(),
-                object: term_to_string(&triple.object),
+                subject: oxrdf_subject_to_string(&triple.subject),
+                predicate: triple.predicate.as_str().to_string(),
+                object: oxrdf_term_to_string(&triple.object),
             });
-            Ok(()) as Result<(), rio_turtle::TurtleError>
-        })?;
+        }
 
-        if let Some(db) = &self.db {
-            let tree = db.open_tree("triples")?;
+        if let Some(backend) = &self.backend {
             for triple in &parsed {
                 let key = format!(
                     "{}::{}::{}::{}",
                     triple.source, triple.subject, triple.predicate, triple.object
                 );
-                tree.insert(key.as_bytes(), serde_json::to_vec(triple)?)?;
+                backend.upsert("triples", key.as_bytes(), &serde_json::to_vec(triple)?)?;
             }
         }
 
@@ -624,6 +930,10 @@ impl KnowledgeStore for NeumannStore {
             .expect("semantic_triples")
             .extend(parsed);
         Ok(())
+    }
+
+    async fn validate_turtle(&self, turtle: &str) -> Result<Vec<ShapeViolation>> {
+        self.snapshot().validate_turtle_content(turtle)
     }
 
     async fn related_objects(&self, subject: &str, predicate: &str) -> Result<Vec<String>> {
@@ -639,6 +949,10 @@ impl KnowledgeStore for NeumannStore {
 
     async fn list_classes(&self) -> Result<Vec<String>> {
         Ok(self.snapshot().ontology_classes())
+    }
+
+    async fn subclasses_of(&self, class_iri: &str) -> Result<Vec<String>> {
+        Ok(self.snapshot().subclasses_of(class_iri))
     }
 
     async fn query(&self, q: SemanticQuery) -> Result<QueryResult> {
@@ -762,7 +1076,7 @@ impl KnowledgeStore for NeumannStore {
     }
 
     async fn health(&self) -> Result<StoreHealth> {
-        let persistent = self.db.is_some();
+        let persistent = self.backend.is_some();
         Ok(StoreHealth {
             healthy: true,
             message: if persistent {
@@ -771,6 +1085,50 @@ impl KnowledgeStore for NeumannStore {
                 "ready (in-memory)".to_string()
             },
         })
+    }
+
+    async fn upsert_artifact(&self, artifact: ArtifactRecord) -> Result<()> {
+        if let Some(b) = &self.backend {
+            b.upsert("artifacts", artifact.id.as_bytes(), &serde_json::to_vec(&artifact)?)?;
+        }
+        self.artifacts
+            .write()
+            .expect("artifacts")
+            .insert(artifact.id.clone(), artifact);
+        Ok(())
+    }
+
+    async fn upsert_anchors(&self, anchors: Vec<AnchorRecord>) -> Result<()> {
+        let mut stored = self.anchors.write().expect("anchors");
+        for anchor in anchors {
+            if let Some(b) = &self.backend {
+                b.upsert("anchors", anchor.id.as_bytes(), &serde_json::to_vec(&anchor)?)?;
+            }
+            stored.insert(anchor.id.clone(), anchor);
+        }
+        Ok(())
+    }
+
+    async fn upsert_observations(&self, obs: Vec<ObservationRecord>) -> Result<()> {
+        let mut stored = self.observations.write().expect("observations");
+        for observation in obs {
+            if let Some(b) = &self.backend {
+                b.upsert("observations", observation.id.as_bytes(), &serde_json::to_vec(&observation)?)?;
+            }
+            stored.insert(observation.id.clone(), observation);
+        }
+        Ok(())
+    }
+
+    async fn get_anchors_for(&self, artifact_id: &str) -> Result<Vec<AnchorRecord>> {
+        Ok(self
+            .anchors
+            .read()
+            .expect("anchors")
+            .values()
+            .filter(|anchor| anchor.artifact_id == artifact_id)
+            .cloned()
+            .collect())
     }
 }
 
@@ -792,27 +1150,28 @@ fn cosine(a: &[f32], b: &[f32]) -> f32 {
     }
 }
 
-fn subject_to_string(subject: &Subject<'_>) -> String {
+fn oxrdf_subject_to_string(subject: &oxrdf::Subject) -> String {
     match subject {
-        Subject::NamedNode(node) => node.iri.to_string(),
-        Subject::BlankNode(node) => format!("_:{}", node.id),
-        Subject::Triple(_) => "<<embedded-subject>>".to_string(),
+        oxrdf::Subject::NamedNode(n) => n.as_str().to_string(),
+        oxrdf::Subject::BlankNode(b) => format!("_:{}", b.as_str()),
     }
 }
 
-fn term_to_string(term: &Term<'_>) -> String {
+fn oxrdf_term_to_string(term: &oxrdf::Term) -> String {
     match term {
-        Term::NamedNode(node) => node.iri.to_string(),
-        Term::BlankNode(node) => format!("_:{}", node.id),
-        Term::Literal(literal) => literal_to_string(literal),
-        Term::Triple(_) => "<<embedded-object>>".to_string(),
+        oxrdf::Term::NamedNode(n) => n.as_str().to_string(),
+        oxrdf::Term::BlankNode(b) => format!("_:{}", b.as_str()),
+        oxrdf::Term::Literal(lit) => oxrdf_literal_to_string(lit),
     }
 }
 
-fn literal_to_string(literal: &Literal<'_>) -> String {
-    match literal {
-        Literal::Simple { value } => value.to_string(),
-        Literal::LanguageTaggedString { value, .. } => value.to_string(),
-        Literal::Typed { value, datatype } => format!("{value}^^{}", datatype.iri),
+fn oxrdf_literal_to_string(lit: &oxrdf::Literal) -> String {
+    let dtype = lit.datatype().as_str();
+    if dtype == "http://www.w3.org/2001/XMLSchema#string"
+        || dtype == "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString"
+    {
+        lit.value().to_string()
+    } else {
+        format!("{}^^{}", lit.value(), dtype)
     }
 }
