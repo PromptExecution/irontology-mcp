@@ -74,6 +74,21 @@ impl SearchBackend for DeterministicBackend {
 impl SearchBackend for StoreBackedBackend {
     fn search_vector(&self, query: &str, top_k: usize) -> Result<Vec<RankedResult>> {
         let terms = tokenize(query);
+
+        // Pre-build O(1) lookup maps to avoid O(|embeddings| * (|anchors|+|artifacts|)) scans.
+        let anchor_locator_by_id: HashMap<&str, &str> = self
+            .snapshot
+            .anchors
+            .iter()
+            .map(|a| (a.id.as_str(), a.locator.as_str()))
+            .collect();
+        let artifact_uri_by_locator: HashMap<&str, &str> = self
+            .snapshot
+            .artifacts
+            .iter()
+            .map(|a| (a.locator.as_str(), a.source_uri.as_str()))
+            .collect();
+
         let mut scored: Vec<_> = self
             .snapshot
             .embeddings
@@ -82,21 +97,20 @@ impl SearchBackend for StoreBackedBackend {
                 let query_vector = query_vector(&terms, embedding.vector.len());
                 let score = cosine(&embedding.vector, &query_vector) * embedding.semantic_weight.max(0.0);
                 (score > 0.0).then(|| {
-                    let artifact_uri = embedding.artifact_locator.as_deref()
-                        .and_then(|locator| {
-                            self.snapshot.artifacts.iter()
-                                .find(|a| a.locator == locator)
-                                .map(|a| a.source_uri.clone())
-                        });
+                    let artifact_uri = embedding
+                        .artifact_locator
+                        .as_deref()
+                        .and_then(|locator| artifact_uri_by_locator.get(locator))
+                        .map(|s| s.to_string());
+                    let anchor_locator = embedding
+                        .anchor_id
+                        .as_deref()
+                        .and_then(|aid| anchor_locator_by_id.get(aid))
+                        .map(|s| s.to_string());
                     RankedResult {
                         id: embedding.id.clone(),
                         score,
-                        anchor_locator: embedding.anchor_id.as_deref()
-                            .and_then(|aid| {
-                                self.snapshot.anchors.iter()
-                                    .find(|a| a.id == aid)
-                                    .map(|a| a.locator.clone())
-                            }),
+                        anchor_locator,
                         artifact_uri,
                     }
                 })

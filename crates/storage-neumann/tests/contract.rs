@@ -3,8 +3,7 @@ use std::sync::Arc;
 use serde_json::json;
 use storage_neumann::{
     config::NeumannConfig, EmbeddingModality, EmbeddingRecord, FactRecord, FileRecord,
-    KnowledgeStore, NeumannStore, SemanticQuery, ShapeViolation, StoreSnapshot, SymbolRecord,
-    ViolationSeverity,
+    KnowledgeStore, NeumannStore, SemanticQuery, SymbolRecord, ViolationSeverity,
 };
 use tempfile::tempdir;
 

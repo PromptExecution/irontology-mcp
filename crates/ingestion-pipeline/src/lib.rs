@@ -67,7 +67,7 @@ impl PipelineRegistry {
         best.map(|(_, p)| p)
     }
 
-    /// Run ALL pipelines with confidence > threshold in parallel.
+    /// Run ALL pipelines with confidence > threshold concurrently.
     /// Used for multi-pipeline assurance mode.
     pub async fn extract_all(
         &self,
@@ -82,17 +82,25 @@ impl PipelineRegistry {
             }
         }
 
-        let mut results = Vec::new();
-        for pipeline in candidates {
-            let name = pipeline.name().to_string();
-            let result = pipeline.extract(artifact).await;
-            results.push(result.map(|bundle| (name, bundle)));
-        }
-        results
+        // Run all qualifying pipelines concurrently.
+        let futures: Vec<_> = candidates
+            .into_iter()
+            .map(|pipeline| {
+                let name = pipeline.name().to_string();
+                async move {
+                    pipeline
+                        .extract(artifact)
+                        .await
+                        .map(|bundle| (name, bundle))
+                }
+            })
+            .collect();
+
+        futures::future::join_all(futures).await
     }
 
     /// Merge multiple EvidenceBundles into one with merged evidence refs.
-    /// Observations from multiple pipelines are deduplicated by content hash.
+    /// Observations from multiple pipelines are deduplicated by exact content string equality.
     pub fn merge_bundles(bundles: Vec<(String, EvidenceBundle)>) -> EvidenceBundle {
         if bundles.is_empty() {
             panic!("merge_bundles called with empty bundle list");

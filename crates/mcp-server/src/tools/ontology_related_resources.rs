@@ -49,9 +49,26 @@ impl Tool for OntologyRelatedResourcesTool {
             .ok_or_else(|| anyhow!("predicate missing"))?;
 
         let objects = self.store.related_objects(subject, predicate).await?;
-        // If the predicate is rdf:type or similar class lookup, also return
-        // transitive subclasses so callers can reason about the class hierarchy.
-        let subclasses = self.store.subclasses_of(subject).await.unwrap_or_default();
+
+        // Only traverse the class hierarchy when the request is explicitly about
+        // class membership — i.e. the predicate is rdfs:subClassOf, rdf:type, or
+        // one of the well-known OWL class-relationship predicates.
+        const CLASS_PREDICATES: &[&str] = &[
+            "http://www.w3.org/2000/01/rdf-schema#subClassOf",
+            "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
+            "http://www.w3.org/2002/07/owl#equivalentClass",
+            "http://www.w3.org/2002/07/owl#disjointWith",
+            "rdfs:subClassOf",
+            "rdf:type",
+            "owl:equivalentClass",
+        ];
+
+        let subclasses = if CLASS_PREDICATES.contains(&predicate) {
+            self.store.subclasses_of(subject).await?
+        } else {
+            Vec::new()
+        };
+
         Ok(json!({
             "objects": objects,
             "subclasses": subclasses

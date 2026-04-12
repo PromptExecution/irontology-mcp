@@ -1117,6 +1117,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "domain",
+ "futures",
  "serde",
  "serde_json",
  "tempfile",

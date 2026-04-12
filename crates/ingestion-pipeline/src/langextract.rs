@@ -212,11 +212,33 @@ impl ExternalIngestionPipeline for LangextractPipeline {
         script_tmp.flush().context("failed to flush script")?;
         let script_path = script_tmp.path().to_string_lossy().to_string();
 
-        // Write artifact content to a second temp file
-        let content_tmp = tempfile::Builder::new()
+        // Materialize artifact content into a temp file so the Python script always
+        // receives real bytes regardless of whether the locator is a live file path.
+        let source_path = std::path::Path::new(&artifact.locator);
+        let mut content_tmp = tempfile::Builder::new()
             .suffix(".txt")
             .tempfile()
             .context("failed to create content temp file")?;
+        if source_path.is_file() {
+            let mut source = std::fs::File::open(source_path).with_context(|| {
+                format!(
+                    "failed to open artifact source file '{}'",
+                    source_path.display()
+                )
+            })?;
+            std::io::copy(&mut source, &mut content_tmp).with_context(|| {
+                format!(
+                    "failed to copy artifact source file '{}' into temp file",
+                    source_path.display()
+                )
+            })?;
+            content_tmp.flush().context("failed to flush content temp file")?;
+        } else {
+            return Err(anyhow!(
+                "artifact locator '{}' is not a readable file path; langextract requires a real document file",
+                artifact.locator
+            ));
+        }
         let content_path = content_tmp.path().to_string_lossy().to_string();
 
         let output = Command::new(&self.python_binary)

@@ -8,7 +8,7 @@ use crate::fusion::{RankedResult, SearchBackend};
 use crate::store_backend::DeterministicBackend;
 
 /// Real VectorBackend: embeds query, cosine-searches NeumannStore.
-//
+///
 /// `search_vector_sync` uses `block_in_place` to bridge sync SearchBackend trait → async embed.
 /// Returns an error if called outside a Tokio multi-thread runtime.
 pub struct VectorBackend {

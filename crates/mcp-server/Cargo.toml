@@ -26,10 +26,10 @@ tokio = { workspace = true, features = ["rt-multi-thread", "macros", "signal", "
 rmcp = { version = "1", features = ["server", "transport-io"] }
 retrieval = { path = "../retrieval" }
 storage-neumann = { path = "../storage-neumann" }
+tempfile = "3"
 
 [dev-dependencies]
 provider-test = { path = "../provider-test" }
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls-native-certs"] }
-tempfile = "3"
 tokio = { version = "1", features = ["fs", "macros", "rt-multi-thread", "time"] }
 uuid = { version = "1", features = ["v4"] }

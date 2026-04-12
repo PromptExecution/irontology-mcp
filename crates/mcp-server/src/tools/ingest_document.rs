@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::{collections::BTreeMap, io::Write, sync::Arc};
 
 use anyhow::{anyhow, Context};
 use async_trait::async_trait;
@@ -11,7 +11,7 @@ use ingestion_pipeline::{
     PipelineRegistry,
 };
 use serde_json::{json, Value};
-use storage_neumann::{FactRecord, KnowledgeStore};
+use storage_neumann::{AnchorRecord, ArtifactRecord, FactRecord, KnowledgeStore, ObservationRecord};
 
 use crate::Tool;
 
@@ -85,6 +85,44 @@ fn infer_artifact_kind(locator: &str, media_type: Option<&str>) -> ArtifactKind 
     }
 }
 
+fn artifact_to_record(artifact: &Artifact) -> ArtifactRecord {
+    ArtifactRecord {
+        id: artifact.id.clone(),
+        source_uri: artifact.source_id.clone(),
+        source_kind: format!("{:?}", artifact.source_kind),
+        artifact_kind: format!("{:?}", artifact.kind),
+        title: artifact.title.clone(),
+        locator: artifact.locator.clone(),
+        media_type: artifact.media_type.clone(),
+        content_sha256: String::new(),
+        valid_at: artifact.valid_at.clone(),
+        observed_at: artifact.observed_at.clone(),
+    }
+}
+
+fn anchor_to_record(anchor: &domain::Anchor) -> AnchorRecord {
+    AnchorRecord {
+        id: anchor.id.clone(),
+        artifact_id: anchor.artifact_id.clone(),
+        kind: anchor.kind.clone(),
+        locator: anchor.locator.clone(),
+        label: anchor.label.clone(),
+        byte_offset: None,
+        char_offset: None,
+    }
+}
+
+fn observation_to_record(obs: &domain::Observation) -> ObservationRecord {
+    ObservationRecord {
+        id: obs.id.clone(),
+        artifact_id: obs.artifact_id.clone(),
+        anchor_id: obs.anchor_id.clone(),
+        kind: obs.kind.clone(),
+        content: obs.content.clone(),
+        confidence: obs.confidence,
+    }
+}
+
 #[async_trait]
 impl Tool for IngestDocumentTool {
     fn name(&self) -> &str {
@@ -138,24 +176,47 @@ impl Tool for IngestDocumentTool {
         let assurance_str = params.get("assurance").and_then(|v| v.as_str());
         let assurance = Self::parse_assurance(assurance_str);
 
-        // Decode content (validate it's valid base64)
-        STANDARD
+        // Decode content and write to a temp file so pipelines receive real bytes.
+        let content_bytes = STANDARD
             .decode(content_b64)
             .context("content_base64 is not valid base64")?;
 
+        // Determine a reasonable suffix for the temp file from the URI/media_type.
+        let suffix = uri
+            .rfind('.')
+            .map(|i| uri[i..].to_string())
+            .unwrap_or_default();
+        let mut content_tmp = tempfile::Builder::new()
+            .suffix(&suffix)
+            .tempfile()
+            .context("failed to create temp file for document content")?;
+        content_tmp
+            .write_all(&content_bytes)
+            .context("failed to write document content to temp file")?;
+        content_tmp
+            .flush()
+            .context("failed to flush document temp file")?;
+        let tmp_path = content_tmp.path().to_string_lossy().to_string();
+
+        // Artifact used for storage keeps the caller-supplied URI as locator.
         let artifact = Self::artifact_from_params(uri, media_type);
+        // Artifact handed to the pipeline has the temp file path as locator so the
+        // pipeline can open and read the real document bytes.
+        let mut artifact_for_pipeline = artifact.clone();
+        artifact_for_pipeline.locator = tmp_path;
+
         let registry = Self::build_registry();
 
         let (bundle, pipeline_name) = match assurance {
             AssuranceLevel::Standard => {
                 let pipeline = registry
-                    .select_best(&artifact)
+                    .select_best(&artifact_for_pipeline)
                     .await
                     .ok_or_else(|| {
                         anyhow!("no available ingestion pipeline for this artifact type")
                     })?;
                 let name = pipeline.name().to_string();
-                let bundle = pipeline.extract(&artifact).await?;
+                let bundle = pipeline.extract(&artifact_for_pipeline).await?;
                 (bundle, name)
             }
             AssuranceLevel::Corroborated | AssuranceLevel::HighAssurance => {
@@ -163,7 +224,7 @@ impl Tool for IngestDocumentTool {
                     AssuranceLevel::Corroborated => 0.5,
                     _ => 0.3,
                 };
-                let results = registry.extract_all(&artifact, min_confidence).await;
+                let results = registry.extract_all(&artifact_for_pipeline, min_confidence).await;
                 let successful: Vec<(String, _)> =
                     results.into_iter().filter_map(|r| r.ok()).collect();
                 if successful.is_empty() {
@@ -234,10 +295,12 @@ impl Tool for IngestDocumentTool {
             }
         }
 
-        self.store.upsert_artifact(artifact.clone()).await?;
-        self.store.upsert_anchors(bundle.anchors.clone()).await?;
+        self.store.upsert_artifact(artifact_to_record(&artifact)).await?;
         self.store
-            .upsert_observations(bundle.observations.clone())
+            .upsert_anchors(bundle.anchors.iter().map(anchor_to_record).collect())
+            .await?;
+        self.store
+            .upsert_observations(bundle.observations.iter().map(observation_to_record).collect())
             .await?;
         self.store.upsert_facts(facts).await?;
 

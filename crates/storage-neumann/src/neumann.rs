@@ -243,24 +243,32 @@ impl StoreSnapshot {
     /// Scans `rdfs:subClassOf` triples where the *object* is `class_iri`.
     pub fn subclasses_of(&self, class_iri: &str) -> Vec<String> {
         const SUBCLASS_OF: &str = "http://www.w3.org/2000/01/rdf-schema#subClassOf";
-        const MAX_DEPTH: usize = 20;
+
+        // Build a reverse index: parent → Vec<child> to avoid O(|triples|) per BFS step.
+        let mut children_of: std::collections::HashMap<&str, Vec<&str>> =
+            std::collections::HashMap::new();
+        for triple in &self.semantic_triples {
+            if triple.predicate == SUBCLASS_OF {
+                children_of
+                    .entry(triple.object.as_str())
+                    .or_default()
+                    .push(triple.subject.as_str());
+            }
+        }
 
         let mut result = Vec::new();
         let mut queue: Vec<String> = vec![class_iri.to_string()];
         let mut visited = std::collections::BTreeSet::new();
         visited.insert(class_iri.to_string());
 
-        for _ in 0..MAX_DEPTH {
-            if queue.is_empty() {
-                break;
-            }
+        while !queue.is_empty() {
             let mut next = Vec::new();
             for parent in &queue {
-                for triple in &self.semantic_triples {
-                    if triple.predicate == SUBCLASS_OF && triple.object == *parent {
-                        if visited.insert(triple.subject.clone()) {
-                            result.push(triple.subject.clone());
-                            next.push(triple.subject.clone());
+                if let Some(children) = children_of.get(parent.as_str()) {
+                    for child in children {
+                        if visited.insert((*child).to_string()) {
+                            result.push((*child).to_string());
+                            next.push((*child).to_string());
                         }
                     }
                 }
@@ -274,24 +282,32 @@ impl StoreSnapshot {
     /// Scans `rdfs:subClassOf` triples where the *subject* is `class_iri`.
     pub fn superclasses_of(&self, class_iri: &str) -> Vec<String> {
         const SUBCLASS_OF: &str = "http://www.w3.org/2000/01/rdf-schema#subClassOf";
-        const MAX_DEPTH: usize = 20;
+
+        // Build a forward index: child → Vec<parent> to avoid O(|triples|) per BFS step.
+        let mut parents_of: std::collections::HashMap<&str, Vec<&str>> =
+            std::collections::HashMap::new();
+        for triple in &self.semantic_triples {
+            if triple.predicate == SUBCLASS_OF {
+                parents_of
+                    .entry(triple.subject.as_str())
+                    .or_default()
+                    .push(triple.object.as_str());
+            }
+        }
 
         let mut result = Vec::new();
         let mut queue: Vec<String> = vec![class_iri.to_string()];
         let mut visited = std::collections::BTreeSet::new();
         visited.insert(class_iri.to_string());
 
-        for _ in 0..MAX_DEPTH {
-            if queue.is_empty() {
-                break;
-            }
+        while !queue.is_empty() {
             let mut next = Vec::new();
             for child in &queue {
-                for triple in &self.semantic_triples {
-                    if triple.predicate == SUBCLASS_OF && triple.subject == *child {
-                        if visited.insert(triple.object.clone()) {
-                            result.push(triple.object.clone());
-                            next.push(triple.object.clone());
+                if let Some(parents) = parents_of.get(child.as_str()) {
+                    for parent in parents {
+                        if visited.insert((*parent).to_string()) {
+                            result.push((*parent).to_string());
+                            next.push((*parent).to_string());
                         }
                     }
                 }
