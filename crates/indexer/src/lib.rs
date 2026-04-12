@@ -1,4 +1,5 @@
 pub mod chunking;
+pub mod distillation;
 pub mod dsl_matcher;
 pub mod embedding;
 pub mod pipeline;

@@ -11,6 +11,7 @@ domain = { path = "../domain" }
 dsl = { path = "../dsl" }
 intake = { path = "../intake" }
 provider-api = { path = "../provider-api" }
+regex = "1"
 serde.workspace = true
 serde_json.workspace = true
 storage-neumann = { path = "../storage-neumann" }
