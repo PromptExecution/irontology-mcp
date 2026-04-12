@@ -80,6 +80,12 @@ impl KnowledgeStore for StoreProbe {
     async fn ingest_turtle(&self, _source: &str, _turtle: &str) -> Result<()> {
         Ok(())
     }
+    async fn validate_turtle(&self, _turtle: &str) -> Result<Vec<storage_neumann::ShapeViolation>> {
+        Ok(vec![])
+    }
+    async fn subclasses_of(&self, _class_iri: &str) -> Result<Vec<String>> {
+        Ok(vec![])
+    }
 
     async fn related_objects(&self, _subject: &str, _predicate: &str) -> Result<Vec<String>> {
         Ok(vec![])

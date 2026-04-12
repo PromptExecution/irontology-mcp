@@ -5,6 +5,7 @@ pub use config::NeumannConfig;
 pub use neumann::{
     AnchorRecord, ArtifactRecord, EdgeKind, EdgeRecord, EmbeddingModality, EmbeddingRecord,
     FactRecord, FileRecord, KnowledgeStore, NeumannStore, ObservationRecord, QueryResult,
-    SemanticQuery, SemanticTriple, StoreHealth, StoreSnapshot, SymbolRecord,
+    SemanticQuery, SemanticTriple, ShapeViolation, StoreHealth, StoreSnapshot, SymbolRecord,
+    ViolationSeverity,
 };
 pub mod persistence;
