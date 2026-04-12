@@ -49,6 +49,12 @@ impl Tool for OntologyRelatedResourcesTool {
             .ok_or_else(|| anyhow!("predicate missing"))?;
 
         let objects = self.store.related_objects(subject, predicate).await?;
-        Ok(json!({ "objects": objects }))
+        // If the predicate is rdf:type or similar class lookup, also return
+        // transitive subclasses so callers can reason about the class hierarchy.
+        let subclasses = self.store.subclasses_of(subject).await.unwrap_or_default();
+        Ok(json!({
+            "objects": objects,
+            "subclasses": subclasses
+        }))
     }
 }

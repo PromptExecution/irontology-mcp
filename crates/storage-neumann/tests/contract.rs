@@ -3,7 +3,8 @@ use std::sync::Arc;
 use serde_json::json;
 use storage_neumann::{
     config::NeumannConfig, EmbeddingModality, EmbeddingRecord, FactRecord, FileRecord,
-    KnowledgeStore, NeumannStore, SemanticQuery, SymbolRecord,
+    KnowledgeStore, NeumannStore, SemanticQuery, ShapeViolation, StoreSnapshot, SymbolRecord,
+    ViolationSeverity,
 };
 use tempfile::tempdir;
 
@@ -285,4 +286,107 @@ fn test_config(path: std::path::PathBuf) -> NeumannConfig {
         namespace: "test".to_string(),
         data_path: Some(path),
     }
+}
+
+#[tokio::test]
+async fn subclasses_of_follows_rdfs_subClassOf_chain() {
+    let store = NeumannStore::try_new(NeumannConfig::default()).expect("in-memory store");
+
+    let turtle = r#"@prefix ex: <https://example.org/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+ex:Foo rdfs:subClassOf ex:Bar .
+ex:Bar rdfs:subClassOf ex:Base .
+"#;
+    store
+        .ingest_turtle("test://hierarchy", turtle)
+        .await
+        .expect("ingest");
+
+    let snapshot = store.snapshot();
+
+    let mut subs = snapshot.subclasses_of("https://example.org/Base");
+    subs.sort();
+    assert!(
+        subs.contains(&"https://example.org/Bar".to_string()),
+        "expected Bar in subclasses of Base, got: {subs:?}"
+    );
+    assert!(
+        subs.contains(&"https://example.org/Foo".to_string()),
+        "expected Foo (transitive) in subclasses of Base, got: {subs:?}"
+    );
+
+    let mut supers = snapshot.superclasses_of("https://example.org/Foo");
+    supers.sort();
+    assert!(
+        supers.contains(&"https://example.org/Bar".to_string()),
+        "expected Bar in superclasses of Foo, got: {supers:?}"
+    );
+    assert!(
+        supers.contains(&"https://example.org/Base".to_string()),
+        "expected Base (transitive) in superclasses of Foo, got: {supers:?}"
+    );
+}
+
+#[tokio::test]
+async fn validate_turtle_catches_missing_required_property() {
+    let store = NeumannStore::try_new(NeumannConfig::default()).expect("in-memory store");
+
+    // Ingest a SHACL shape requiring sh:minCount 1 for ex:name on ex:Person.
+    // We use blank-node IDs encoded as IRIs for simplicity.
+    let shape_turtle = r#"@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix ex: <https://example.org/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+ex:PersonShape
+    sh:targetClass ex:Person ;
+    sh:property ex:PersonShape_name .
+
+ex:PersonShape_name
+    sh:path ex:name ;
+    sh:minCount 1 .
+"#;
+    store
+        .ingest_turtle("test://shapes", shape_turtle)
+        .await
+        .expect("ingest shapes");
+
+    // An instance that is MISSING ex:name — should produce a violation.
+    let bad_instance = r#"@prefix ex: <https://example.org/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+ex:alice rdf:type ex:Person .
+"#;
+    let violations = store
+        .validate_turtle(bad_instance)
+        .await
+        .expect("validate");
+    assert!(
+        !violations.is_empty(),
+        "expected at least one violation for missing ex:name, got none"
+    );
+    let v = &violations[0];
+    assert_eq!(v.subject, "https://example.org/alice");
+    assert_eq!(v.severity, ViolationSeverity::Violation);
+    assert!(
+        v.message.contains("sh:minCount 1"),
+        "message should mention minCount, got: {}",
+        v.message
+    );
+
+    // An instance WITH ex:name — should produce no violations.
+    let good_instance = r#"@prefix ex: <https://example.org/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+ex:bob rdf:type ex:Person ;
+    ex:name "Bob" .
+"#;
+    let ok = store
+        .validate_turtle(good_instance)
+        .await
+        .expect("validate good");
+    assert!(
+        ok.is_empty(),
+        "expected no violations for conforming instance, got: {ok:?}"
+    );
 }

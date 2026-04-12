@@ -22,6 +22,7 @@ use crate::tools::{
     agent_forward_mcp::AgentForwardMcpTool, agent_run::AgentRunTool,
     ontology_list_classes::OntologyListClassesTool,
     ontology_related_resources::OntologyRelatedResourcesTool,
+    ontology_validate::OntologyValidateTool,
     repo_index::RepoIndexTool,
     repo_read_symbol::RepoReadSymbolTool,
     repo_search::RepoSearchTool,
@@ -193,7 +194,8 @@ impl ToolRegistry {
         if let Some(provider) = provider {
             registry.register(Arc::new(RepoIndexTool::new(store.clone(), provider)));
         }
-        registry.register(Arc::new(OntologyRelatedResourcesTool::new(store)));
+        registry.register(Arc::new(OntologyRelatedResourcesTool::new(store.clone())));
+        registry.register(Arc::new(OntologyValidateTool::new(store)));
         registry
     }
 }

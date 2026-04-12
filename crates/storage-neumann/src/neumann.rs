@@ -126,6 +126,26 @@ pub struct SemanticTriple {
     pub object: String,
 }
 
+/// Severity of a SHACL-like shape validation violation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ViolationSeverity {
+    Violation,
+    Warning,
+    Info,
+}
+
+/// A single validation finding produced by `validate_turtle`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ShapeViolation {
+    /// The IRI/blank-node that failed validation.
+    pub subject: String,
+    /// The shape IRI that was evaluated.
+    pub shape: String,
+    /// Human-readable explanation.
+    pub message: String,
+    pub severity: ViolationSeverity,
+}
+
 /// A point-in-time snapshot of all in-memory NeumannStore state.
 /// Used by retrieval backends for pure-function search without taking locks.
 #[derive(Debug, Clone, Default)]
@@ -172,6 +192,170 @@ impl StoreSnapshot {
         }
 
         classes.into_iter().collect()
+    }
+
+    /// Returns all direct and transitive subclasses of `class_iri`.
+    /// Scans `rdfs:subClassOf` triples where the *object* is `class_iri`.
+    pub fn subclasses_of(&self, class_iri: &str) -> Vec<String> {
+        const SUBCLASS_OF: &str = "http://www.w3.org/2000/01/rdf-schema#subClassOf";
+        const MAX_DEPTH: usize = 20;
+
+        let mut result = Vec::new();
+        let mut queue: Vec<String> = vec![class_iri.to_string()];
+        let mut visited = std::collections::BTreeSet::new();
+        visited.insert(class_iri.to_string());
+
+        for _ in 0..MAX_DEPTH {
+            if queue.is_empty() {
+                break;
+            }
+            let mut next = Vec::new();
+            for parent in &queue {
+                for triple in &self.semantic_triples {
+                    if triple.predicate == SUBCLASS_OF && triple.object == *parent {
+                        if visited.insert(triple.subject.clone()) {
+                            result.push(triple.subject.clone());
+                            next.push(triple.subject.clone());
+                        }
+                    }
+                }
+            }
+            queue = next;
+        }
+        result
+    }
+
+    /// Returns all direct and transitive superclasses of `class_iri`.
+    /// Scans `rdfs:subClassOf` triples where the *subject* is `class_iri`.
+    pub fn superclasses_of(&self, class_iri: &str) -> Vec<String> {
+        const SUBCLASS_OF: &str = "http://www.w3.org/2000/01/rdf-schema#subClassOf";
+        const MAX_DEPTH: usize = 20;
+
+        let mut result = Vec::new();
+        let mut queue: Vec<String> = vec![class_iri.to_string()];
+        let mut visited = std::collections::BTreeSet::new();
+        visited.insert(class_iri.to_string());
+
+        for _ in 0..MAX_DEPTH {
+            if queue.is_empty() {
+                break;
+            }
+            let mut next = Vec::new();
+            for child in &queue {
+                for triple in &self.semantic_triples {
+                    if triple.predicate == SUBCLASS_OF && triple.subject == *child {
+                        if visited.insert(triple.object.clone()) {
+                            result.push(triple.object.clone());
+                            next.push(triple.object.clone());
+                        }
+                    }
+                }
+            }
+            queue = next;
+        }
+        result
+    }
+
+    /// Validate Turtle RDF content against SHACL shapes ingested into this snapshot.
+    /// Currently checks `sh:minCount` constraints only.
+    pub fn validate_turtle_content(&self, turtle: &str) -> Result<Vec<ShapeViolation>> {
+        const SH_TARGET_CLASS: &str = "http://www.w3.org/ns/shacl#targetClass";
+        const SH_PROPERTY: &str = "http://www.w3.org/ns/shacl#property";
+        const SH_PATH: &str = "http://www.w3.org/ns/shacl#path";
+        const SH_MIN_COUNT: &str = "http://www.w3.org/ns/shacl#minCount";
+        const RDF_TYPE: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
+
+        // Parse incoming turtle into (subject, predicate, object) tuples.
+        let mut incoming: Vec<(String, String, String)> = Vec::new();
+        TurtleParser::new(turtle.as_bytes(), None)
+            .parse_all(&mut |triple| {
+                incoming.push((
+                    subject_to_string(&triple.subject),
+                    triple.predicate.iri.to_string(),
+                    term_to_string(&triple.object),
+                ));
+                Ok(()) as Result<(), rio_turtle::TurtleError>
+            })
+            .map_err(|e| anyhow!("turtle parse error: {e}"))?;
+
+        // Collect rdf:type assertions from the incoming document.
+        let mut subject_types: HashMap<String, Vec<String>> = HashMap::new();
+        for (subj, pred, obj) in &incoming {
+            if pred == RDF_TYPE {
+                subject_types.entry(subj.clone()).or_default().push(obj.clone());
+            }
+        }
+
+        // Index shapes: shape_iri -> target class IRI.
+        let mut shape_target: HashMap<String, String> = HashMap::new();
+        for triple in &self.semantic_triples {
+            if triple.predicate == SH_TARGET_CLASS {
+                shape_target.insert(triple.subject.clone(), triple.object.clone());
+            }
+        }
+
+        let mut violations = Vec::new();
+
+        for (shape_iri, target_class) in &shape_target {
+            // Find blank-node property constraints attached to this shape.
+            let prop_nodes: Vec<String> = self
+                .semantic_triples
+                .iter()
+                .filter(|t| t.predicate == SH_PROPERTY && t.subject == *shape_iri)
+                .map(|t| t.object.clone())
+                .collect();
+
+            for prop_node in &prop_nodes {
+                let path_iri = self
+                    .semantic_triples
+                    .iter()
+                    .find(|t| t.predicate == SH_PATH && t.subject == *prop_node)
+                    .map(|t| t.object.clone());
+                let min_count_str = self
+                    .semantic_triples
+                    .iter()
+                    .find(|t| t.predicate == SH_MIN_COUNT && t.subject == *prop_node)
+                    .map(|t| t.object.clone());
+
+                let (path_iri, min_count) = match (path_iri, min_count_str) {
+                    (Some(p), Some(m)) => {
+                        // Value may be "1" or "1^^xsd:integer" etc.
+                        let n_str = m.split("^^").next().unwrap_or(&m).trim().to_string();
+                        match n_str.parse::<usize>() {
+                            Ok(n) => (p, n),
+                            Err(_) => continue,
+                        }
+                    }
+                    _ => continue,
+                };
+
+                if min_count == 0 {
+                    continue;
+                }
+
+                for (subject, types) in &subject_types {
+                    if !types.contains(target_class) {
+                        continue;
+                    }
+                    let count = incoming
+                        .iter()
+                        .filter(|(s, p, _)| s == subject && p == &path_iri)
+                        .count();
+                    if count < min_count {
+                        violations.push(ShapeViolation {
+                            subject: subject.clone(),
+                            shape: shape_iri.clone(),
+                            message: format!(
+                                "sh:minCount {min_count} violated for path <{path_iri}>: found {count} value(s)"
+                            ),
+                            severity: ViolationSeverity::Violation,
+                        });
+                    }
+                }
+            }
+        }
+
+        Ok(violations)
     }
 }
 
@@ -225,8 +409,13 @@ pub trait KnowledgeStore: Send + Sync {
     async fn upsert_edges(&self, edges: Vec<EdgeRecord>) -> Result<()>;
     async fn upsert_embeddings(&self, embeddings: Vec<EmbeddingRecord>) -> Result<()>;
     async fn ingest_turtle(&self, source: &str, turtle: &str) -> Result<()>;
+    /// Validate `turtle` RDF content against loaded SHACL shapes.
+    /// Returns a list of violations (empty list means the content conforms).
+    async fn validate_turtle(&self, turtle: &str) -> Result<Vec<ShapeViolation>>;
     async fn related_objects(&self, subject: &str, predicate: &str) -> Result<Vec<String>>;
     async fn list_classes(&self) -> Result<Vec<String>>;
+    /// Returns all direct and transitive subclasses of `class_iri` via rdfs:subClassOf.
+    async fn subclasses_of(&self, class_iri: &str) -> Result<Vec<String>>;
     async fn query(&self, q: SemanticQuery) -> Result<QueryResult>;
     async fn health(&self) -> Result<StoreHealth>;
 }
@@ -626,6 +815,10 @@ impl KnowledgeStore for NeumannStore {
         Ok(())
     }
 
+    async fn validate_turtle(&self, turtle: &str) -> Result<Vec<ShapeViolation>> {
+        self.snapshot().validate_turtle_content(turtle)
+    }
+
     async fn related_objects(&self, subject: &str, predicate: &str) -> Result<Vec<String>> {
         Ok(self
             .semantic_triples
@@ -639,6 +832,10 @@ impl KnowledgeStore for NeumannStore {
 
     async fn list_classes(&self) -> Result<Vec<String>> {
         Ok(self.snapshot().ontology_classes())
+    }
+
+    async fn subclasses_of(&self, class_iri: &str) -> Result<Vec<String>> {
+        Ok(self.snapshot().subclasses_of(class_iri))
     }
 
     async fn query(&self, q: SemanticQuery) -> Result<QueryResult> {
