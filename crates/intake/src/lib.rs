@@ -12,6 +12,9 @@ use domain::{Artifact, ArtifactKind, EvidenceBundle, SourceSystemKind};
 use handlers::{Extraction, HandlerRegistry, IntakeFile};
 use naming::{NamingPolicy, StoragePlan};
 use serde::Deserialize;
+pub mod paper;
+pub use paper::{ArXivConnector, HuggingFacePapersConnector, PdfExtractor};
+
 
 pub const DIRECTORY_CONFIG_FILE: &str = ".promptexecution.toml";
 
