@@ -422,6 +422,8 @@ fn parse_source_kind(value: &str) -> SourceSystemKind {
         "database_schema" | "schema" => SourceSystemKind::DatabaseSchema,
         "document_silo" | "documents" => SourceSystemKind::DocumentSilo,
         "process_catalog" => SourceSystemKind::ProcessCatalog,
+        "arxiv" => SourceSystemKind::ArXiv,
+        "huggingface_papers" | "hfpapers" => SourceSystemKind::HuggingFacePapers,
         other => SourceSystemKind::Other(other.to_string()),
     }
 }
