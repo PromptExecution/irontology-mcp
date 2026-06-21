@@ -1,4 +1,5 @@
 pub mod embed;
+#[cfg(feature = "embed-anything")]
 pub mod embed_anything;
 pub mod fusion;
 pub mod graph;
@@ -8,6 +9,7 @@ pub mod store_backend;
 pub mod vector;
 
 pub use embed::EmbeddingClient;
+#[cfg(feature = "embed-anything")]
 pub use embed_anything::EmbedAnythingClient;
 pub use fusion::{fusion_search, FusionWeights, RankedResult, SearchBackend};
 pub use store_backend::StoreBackedBackend;
@@ -85,6 +87,8 @@ impl SearchBackend for NeumannBackend {
 ///
 /// Returns the client directly so callers can wire it into their preferred `SearchBackend`
 /// or use it standalone for embedding operations.
+/// Only available with the `embed-anything` feature.
+#[cfg(feature = "embed-anything")]
 pub async fn create_embed_anything_backend() -> Result<EmbedAnythingClient> {
     EmbedAnythingClient::new().await
 }

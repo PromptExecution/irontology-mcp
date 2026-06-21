@@ -3,10 +3,13 @@ name = "retrieval"
 version.workspace = true
 edition.workspace = true
 
+[features]
+default = []
+embed-anything = ["b00t-embed"]
+
 [dependencies]
 anyhow.workspace = true
-async-trait.workspace = true
-b00t-embed = { path = "../../../../b00t-embed" }
+b00t-embed = { path = "../../../../b00t-embed", optional = true }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 serde.workspace = true
 serde_json.workspace = true

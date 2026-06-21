@@ -12,7 +12,16 @@
 //! - `B00T_EMBED_BATCH`    — batch size for embed_batch (default: 32)
 
 use anyhow::Result;
-use b00t_embed::{EmbedAnythingBackend, EmbedBackend, EmbedConfig, EmbedProvider};
+use b00t_embed::{EmbedAnythingBackend, EmbedConfig, EmbedProvider};
+
+/// Extract the model identifier from an [`EmbedConfig`] regardless of provider variant.
+fn model_id_from_config(config: &EmbedConfig) -> String {
+    match &config.provider {
+        EmbedProvider::HuggingFace { model_id, .. } => model_id.clone(),
+        EmbedProvider::ONNX { model_id } => model_id.clone(),
+        EmbedProvider::Cloud { model_id, .. } => model_id.clone(),
+    }
+}
 
 /// Wraps [`b00t_embed::EmbedAnythingBackend`] in the same public API as [`crate::embed::EmbeddingClient`].
 ///
@@ -56,12 +65,7 @@ impl EmbedAnythingClient {
     ///
     /// Useful when you want to specify `ONNX` or `Cloud` providers instead of HuggingFace.
     pub async fn with_config(config: EmbedConfig) -> Result<Self> {
-        // Extract model_id from whichever provider variant was supplied
-        let model_id = match &config.provider {
-            EmbedProvider::HuggingFace { model_id, .. } => model_id.clone(),
-            EmbedProvider::ONNX { model_id } => model_id.clone(),
-            EmbedProvider::Cloud { model_id, .. } => model_id.clone(),
-        };
+        let model_id = model_id_from_config(&config);
         let backend = EmbedAnythingBackend::new(config).await?;
         Ok(Self { backend, model_id })
     }
@@ -84,5 +88,112 @@ impl EmbedAnythingClient {
     /// Return the model identifier string.
     pub fn model_id(&self) -> &str {
         &self.model_id
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // -------------------------------------------------------------------------
+    // Unit tests for config → model_id extraction (no backend required)
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn model_id_from_huggingface_config() {
+        let config = EmbedConfig {
+            provider: EmbedProvider::HuggingFace {
+                model_id: "org/my-model".into(),
+                revision: Some("main".into()),
+            },
+            batch_size: 16,
+            chunk_size: 512,
+        };
+        assert_eq!(model_id_from_config(&config), "org/my-model");
+    }
+
+    #[test]
+    fn model_id_from_onnx_config() {
+        let config = EmbedConfig {
+            provider: EmbedProvider::ONNX {
+                model_id: "onnx-model-v1".into(),
+            },
+            batch_size: 8,
+            chunk_size: 256,
+        };
+        assert_eq!(model_id_from_config(&config), "onnx-model-v1");
+    }
+
+    #[test]
+    fn model_id_from_cloud_config() {
+        let config = EmbedConfig {
+            provider: EmbedProvider::Cloud {
+                model_id: "text-embedding-3".into(),
+                api_key: "sk-test".into(),
+                base_url: Some("https://api.example.com".into()),
+            },
+            batch_size: 32,
+            chunk_size: 512,
+        };
+        assert_eq!(model_id_from_config(&config), "text-embedding-3");
+    }
+
+    // -------------------------------------------------------------------------
+    // Integration tests (require model weights — #[ignore] by default)
+    // Run with: cargo test -p retrieval -- --ignored embed_anything
+    // -------------------------------------------------------------------------
+
+    #[tokio::test]
+    #[ignore = "requires downloading model weights via b00t-embed"]
+    async fn embed_anything_new_defaults() {
+        let client = EmbedAnythingClient::new().await.expect("new()");
+        assert!(client.model_id().contains("jina"));
+    }
+
+    #[tokio::test]
+    #[ignore = "requires downloading model weights via b00t-embed"]
+    async fn embed_anything_with_config_huggingface() {
+        let config = EmbedConfig {
+            provider: EmbedProvider::HuggingFace {
+                model_id: "Xenova/all-MiniLM-L6-v2".into(),
+                revision: None,
+            },
+            batch_size: 16,
+            chunk_size: 512,
+        };
+        let client = EmbedAnythingClient::with_config(config)
+            .await
+            .expect("with_config");
+        assert_eq!(client.model_id(), "Xenova/all-MiniLM-L6-v2");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires downloading model weights via b00t-embed"]
+    async fn embed_anything_embed_returns_vector() {
+        let client = EmbedAnythingClient::new().await.expect("new()");
+        let embedding = client.embed("hello world").await.expect("embed");
+        assert!(!embedding.is_empty(), "expected non-empty embedding vector");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires downloading model weights via b00t-embed"]
+    async fn embed_anything_is_available_after_construction() {
+        let client = EmbedAnythingClient::new().await.expect("new()");
+        assert!(client.is_available().await);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires downloading model weights via b00t-embed"]
+    async fn embed_anything_model_id_accessor() {
+        let client = EmbedAnythingClient::new().await.expect("new()");
+        assert!(!client.model_id().is_empty());
+    }
+
+    #[tokio::test]
+    #[ignore = "requires downloading model weights via b00t-embed"]
+    async fn embed_anything_empty_text() {
+        let client = EmbedAnythingClient::new().await.expect("new()");
+        let embedding = client.embed("").await.expect("embed empty string");
+        assert!(!embedding.is_empty());
     }
 }
