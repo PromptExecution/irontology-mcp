@@ -12,6 +12,9 @@ use domain::{Artifact, ArtifactKind, EvidenceBundle, SourceSystemKind};
 use handlers::{Extraction, HandlerRegistry, IntakeFile};
 use naming::{NamingPolicy, StoragePlan};
 use serde::Deserialize;
+pub mod paper;
+pub use paper::{ArXivConnector, HuggingFacePapersConnector, PdfExtractor};
+
 
 pub const DIRECTORY_CONFIG_FILE: &str = ".promptexecution.toml";
 
@@ -419,6 +422,8 @@ fn parse_source_kind(value: &str) -> SourceSystemKind {
         "database_schema" | "schema" => SourceSystemKind::DatabaseSchema,
         "document_silo" | "documents" => SourceSystemKind::DocumentSilo,
         "process_catalog" => SourceSystemKind::ProcessCatalog,
+        "arxiv" => SourceSystemKind::ArXiv,
+        "huggingface_papers" | "hfpapers" => SourceSystemKind::HuggingFacePapers,
         other => SourceSystemKind::Other(other.to_string()),
     }
 }

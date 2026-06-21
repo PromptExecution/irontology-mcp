@@ -20,6 +20,8 @@ pub enum SourceSystemKind {
     DatabaseSchema,
     DocumentSilo,
     ProcessCatalog,
+    ArXiv,
+    HuggingFacePapers,
     Other(String),
 }
 
@@ -35,6 +37,7 @@ pub enum ArtifactKind {
     DatabaseRecordSet,
     WikiPage,
     Spreadsheet,
+    AcademicPaper,
     Other(String),
 }
 
