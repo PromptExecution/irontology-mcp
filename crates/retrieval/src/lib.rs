@@ -1,4 +1,6 @@
 pub mod embed;
+#[cfg(feature = "embed-anything")]
+pub mod embed_anything;
 pub mod fusion;
 pub mod graph;
 pub mod lexical;
@@ -7,6 +9,8 @@ pub mod store_backend;
 pub mod vector;
 
 pub use embed::EmbeddingClient;
+#[cfg(feature = "embed-anything")]
+pub use embed_anything::EmbedAnythingClient;
 pub use fusion::{fusion_search, FusionWeights, RankedResult, SearchBackend};
 pub use store_backend::StoreBackedBackend;
 pub use vector::VectorBackend;
@@ -73,4 +77,18 @@ impl SearchBackend for NeumannBackend {
     fn search_ontology(&self, query: &str, top_k: usize) -> Result<Vec<RankedResult>> {
         ontology::search(query, top_k)
     }
+}
+
+/// Create an [`EmbedAnythingClient`] with default configuration.
+///
+/// Reads env vars `B00T_EMBED_MODEL`, `B00T_EMBED_REVISION`, `B00T_EMBED_BATCH`.
+/// This is the primary factory matching the same pattern used by other backend constructors
+/// (e.g. [`NeumannBackend::new`]).
+///
+/// Returns the client directly so callers can wire it into their preferred `SearchBackend`
+/// or use it standalone for embedding operations.
+/// Only available with the `embed-anything` feature.
+#[cfg(feature = "embed-anything")]
+pub async fn create_embed_anything_backend() -> Result<EmbedAnythingClient> {
+    EmbedAnythingClient::new().await
 }
