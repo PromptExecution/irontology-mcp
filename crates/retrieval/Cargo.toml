@@ -10,7 +10,7 @@ embed-anything = ["b00t-embed"]
 [dependencies]
 anyhow.workspace = true
 b00t-embed = { path = "../../../../b00t-embed", optional = true }
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls-native-certs"] }
 serde.workspace = true
 serde_json.workspace = true
 storage-neumann = { path = "../storage-neumann" }

@@ -238,6 +238,8 @@ mod tests {
             Ok(vec![RankedResult {
                 id: "repo://artifact/standing-data".to_string(),
                 score: 0.91,
+            anchor_locator: None,
+            artifact_uri: None,
             }])
         }
 
@@ -249,6 +251,8 @@ mod tests {
             Ok(vec![RankedResult {
                 id: "repo://file/acme/notes.md".to_string(),
                 score: 0.76,
+            anchor_locator: None,
+            artifact_uri: None,
             }])
         }
 

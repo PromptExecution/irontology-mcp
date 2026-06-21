@@ -1,18 +1,17 @@
 [package]
-name = "storage-neumann"
+name = "ingestion-pipeline"
 version.workspace = true
 edition.workspace = true
 
 [dependencies]
 anyhow.workspace = true
 async-trait.workspace = true
-base64 = "0.22"
-oxrdf = "0.3"
-oxttl = "0.2"
+domain = { path = "../domain" }
+futures.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-sled = "0.34"
+tokio.workspace = true
+tempfile = "3"
 
 [dev-dependencies]
-tempfile = "3"
-tokio = { version = "1", features = ["macros", "rt"] }
+tokio = { workspace = true, features = ["rt", "macros"] }

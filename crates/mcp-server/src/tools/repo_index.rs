@@ -128,6 +128,8 @@ impl Tool for RepoIndexTool {
                         vector: resp.vectors.into_iter().next().expect("vectors is non-empty; checked above"),
                         modality: EmbeddingModality::DocChunk,
                         semantic_weight: 1.0,
+                        anchor_id: None,
+                        artifact_locator: None,
                     });
                 }
                 Ok(_) => {

@@ -10,10 +10,15 @@ use domain::{Claim, Relation};
 use provider_api::{EmbedRequest, ModelProvider};
 use serde_json::json;
 use storage_neumann::{
-    EdgeKind, EdgeRecord, EmbeddingRecord, FactRecord, FileRecord, KnowledgeStore, SymbolRecord,
+    ArtifactRecord, EdgeKind, EdgeRecord, EmbeddingRecord, FactRecord, FileRecord, KnowledgeStore,
+    SymbolRecord,
 };
 
-use crate::{chunking::chunk_text, embedding::Modality};
+use crate::{
+    chunking::chunk_structured,
+    distillation::distill_chunks,
+    embedding::Modality,
+};
 
 const SYNTHETIC_MODULE_NAME: &str = "__module__";
 
@@ -134,6 +139,27 @@ pub async fn index_intake_file(
                 .map(|meta| meta.len())
                 .unwrap_or_default(),
             commit: blob_id.clone(),
+        })
+        .await?;
+    store
+        .upsert_artifact(ArtifactRecord {
+            id: file_id.clone(),
+            source_uri: intake
+                .source_id
+                .clone()
+                .unwrap_or_else(|| intake.path.clone()),
+            source_kind: intake.source_kind.clone().unwrap_or_default(),
+            artifact_kind: intake
+                .class
+                .clone()
+                .or_else(|| extraction.class.clone())
+                .unwrap_or_default(),
+            title: intake.tags.get("title").cloned(),
+            locator: intake.path.clone(),
+            media_type: Some(intake.media_type.clone()),
+            content_sha256: blob_id.clone(),
+            valid_at: intake.tags.get("valid_at").cloned(),
+            observed_at: None,
         })
         .await?;
     let mut facts = vec![
@@ -268,14 +294,45 @@ pub async fn index_intake_file(
             Modality::CodeSymbol,
         )
     } else {
-        let chunks = chunk_text(&extraction.text, 512);
-        if chunks.is_empty() {
+        let modality = fallback_modality(&intake.extension, extraction.has_symbols);
+        let structured = chunk_structured(&extraction.text, 512);
+        if structured.is_empty() {
             return Ok(false);
         }
-        (
-            chunks,
-            fallback_modality(&intake.extension, extraction.has_symbols),
-        )
+
+        // Store section locator and heading as facts for each chunk.
+        for (i, chunk) in structured.iter().enumerate() {
+            facts.push(FactRecord {
+                subject: format!("{file_id}#chunk-{i}"),
+                predicate: "section_locator".to_string(),
+                object: json!(chunk.locator),
+            });
+            if let Some(heading) = &chunk.heading {
+                facts.push(FactRecord {
+                    subject: format!("{file_id}#chunk-{i}"),
+                    predicate: "section_heading".to_string(),
+                    object: json!(heading),
+                });
+            }
+        }
+
+        // Gap 2: Distillation — only for non-code document chunks.
+        if modality == Modality::DocChunk {
+            let chunk_texts: Vec<String> = structured.iter().map(|c| c.text.clone()).collect();
+            let summaries = distill_chunks(&chunk_texts, provider).await?;
+            for (i, summary) in summaries.into_iter().enumerate() {
+                if !summary.is_empty() {
+                    facts.push(FactRecord {
+                        subject: format!("{file_id}#chunk-{i}"),
+                        predicate: "semantic_note".to_string(),
+                        object: json!(summary),
+                    });
+                }
+            }
+        }
+
+        let chunks: Vec<String> = structured.into_iter().map(|c| c.text).collect();
+        (chunks, modality)
     };
 
     store.upsert_facts(facts).await?;
@@ -299,6 +356,8 @@ pub async fn index_intake_file(
                 vector,
                 modality: Modality::CodeSymbol,
                 semantic_weight: 1.0,
+                anchor_id: None,
+                artifact_locator: Some(intake.path.clone()),
             });
         }
         store.upsert_embeddings(records).await?;
@@ -311,6 +370,8 @@ pub async fn index_intake_file(
             vector,
             modality: embedding_modality,
             semantic_weight: 1.0,
+            anchor_id: None,
+            artifact_locator: Some(intake.path.clone()),
         });
     }
     store.upsert_embeddings(records).await?;
