@@ -1,3 +1,6 @@
+#[cfg(feature = "embed-anything")]
+pub mod embed_anything;
+
 use std::{collections::BTreeMap, sync::Arc};
 
 use anyhow::Result;
