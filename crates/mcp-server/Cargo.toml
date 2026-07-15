@@ -20,6 +20,7 @@ futures.workspace = true
 indexer = { path = "../indexer" }
 orchestrator = { path = "../orchestrator" }
 provider-api = { path = "../provider-api" }
+provider-test = { path = "../provider-test" }
 serde.workspace = true
 serde_json.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "signal", "io-util"] }
