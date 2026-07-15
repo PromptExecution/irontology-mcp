@@ -19,15 +19,19 @@ use serde_json::Value;
 use std::sync::Arc;
 use tokio::signal::ctrl_c;
 
-use mcp_server::McpServerRuntime;
+use mcp_server::{McpServerRuntime, Phase2RuntimeConfig};
+use provider_test::FixtureProvider;
 use retrieval::{DeterministicBackend, NeumannBackend};
 use storage_neumann::{NeumannConfig, NeumannStore};
 
 /// The set of tools exposed through MCP list_tools and callable via call_tool.
 /// Any tool registered in the runtime but absent from this list is intentionally hidden.
+/// 🤓 repo.index requires a ModelProvider — available when NEUMANN_BACKEND=neumann
+///      OR when using the built-in deterministic FixtureProvider (default).
 const EXPOSED_TOOLS: &[&str] = &[
     "repo.search",
     "repo.read_symbol",
+    "repo.index",
     "ontology.list_classes",
     "ontology.related_resources",
 ];
@@ -59,7 +63,13 @@ impl IrontologyMcpServer {
             McpServerRuntime::start_phase2(backend, config).await?
         } else {
             let backend = Box::new(DeterministicBackend);
-            McpServerRuntime::start_phase2(backend, config).await?
+            let provider =
+                Arc::new(FixtureProvider::new("b00t-deterministic").with_embedding_dim(384));
+            McpServerRuntime::start_phase2_configured(
+                backend,
+                Phase2RuntimeConfig::new(config).with_provider(provider),
+            )
+            .await?
         };
         eprintln!("irontology-mcp: runtime initialized");
         Ok(Self { runtime })

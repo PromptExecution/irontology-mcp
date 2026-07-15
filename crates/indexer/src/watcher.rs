@@ -143,6 +143,8 @@ fn source_kind_label(kind: &SourceSystemKind) -> String {
         SourceSystemKind::DatabaseSchema => "database_schema".to_string(),
         SourceSystemKind::DocumentSilo => "document_silo".to_string(),
         SourceSystemKind::ProcessCatalog => "process_catalog".to_string(),
+        SourceSystemKind::ArXiv => "arxiv".to_string(),
+        SourceSystemKind::HuggingFacePapers => "huggingface_papers".to_string(),
         SourceSystemKind::Other(value) => value.clone(),
     }
 }

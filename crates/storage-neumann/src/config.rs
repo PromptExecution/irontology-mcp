@@ -13,7 +13,7 @@ pub struct NeumannConfig {
 impl Default for NeumannConfig {
     fn default() -> Self {
         Self {
-            endpoint: "http://localhost:7777".to_string(),
+            endpoint: "http://localhost:5273".to_string(),
             namespace: "default".to_string(),
             data_path: None,
         }

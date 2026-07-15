@@ -1,19 +1,19 @@
 //! Embedding client for irontology-mcp
 //!
 //! Calls OpenAI-compatible /v1/embeddings endpoint.
-//! Primary: llama-server at http://localhost:8000 (podman CUDA container)
+//! Primary: b00t-server proxy at http://localhost:5273 (llama-server via podman)
 //! Fallback: ollama at http://localhost:11434/api/embeddings
 //!
 //! Env vars:
-//!   EMBEDDING_ENDPOINT  — base URL (default: http://localhost:8000)
-//!   EMBEDDING_MODEL     — model name (default: nomic-embed-text)
+//!   EMBEDDING_ENDPOINT  — base URL (default: http://localhost:5273)
+//!   EMBEDDING_MODEL     — model name (default: embed)
 
 use anyhow::Result;
 use serde::Deserialize;
 use serde_json::json;
 
-const DEFAULT_ENDPOINT: &str = "http://localhost:8000";
-const DEFAULT_MODEL: &str = "nomic-embed-text";
+const DEFAULT_ENDPOINT: &str = "http://localhost:5273";
+const DEFAULT_MODEL: &str = "embed";
 
 #[derive(Debug, Clone)]
 pub struct EmbeddingClient {
@@ -24,10 +24,9 @@ pub struct EmbeddingClient {
 
 impl EmbeddingClient {
     pub fn new() -> Self {
-        let endpoint = std::env::var("EMBEDDING_ENDPOINT")
-            .unwrap_or_else(|_| DEFAULT_ENDPOINT.to_string());
-        let model = std::env::var("EMBEDDING_MODEL")
-            .unwrap_or_else(|_| DEFAULT_MODEL.to_string());
+        let endpoint =
+            std::env::var("EMBEDDING_ENDPOINT").unwrap_or_else(|_| DEFAULT_ENDPOINT.to_string());
+        let model = std::env::var("EMBEDDING_MODEL").unwrap_or_else(|_| DEFAULT_MODEL.to_string());
         Self {
             endpoint,
             model,
