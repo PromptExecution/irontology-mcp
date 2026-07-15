@@ -1,0 +1,37 @@
+# wrkflw-ci-build: local CI gate for irontology-mcp (emulation mode, no Docker)
+# Run with: wrkflw run .github/workflows/wrkflw-ci-build.yml
+# Or:       wrkflw run --job build --runtime emulation .github/workflows/wrkflw-ci-build.yml
+#
+# Proves cargo build + key crate tests pass before pushing to cloud CI.
+# Follows l3dg3rr wrkflw-ci-build.yml pattern (workflow_dispatch only).
+name: wrkflw-ci-build
+
+on:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: "1"
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: "Cargo build + smoke tests"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build workspace
+        run: cargo build --workspace
+
+      - name: Smoke — semantic-runtime
+        run: cargo test -p semantic-runtime
+
+      - name: Smoke — intake
+        run: cargo test -p intake
+
+      - name: Smoke — MCP runtime compiles
+        run: cargo build -p mcp-runtime
